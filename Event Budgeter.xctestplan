@@ -1,0 +1,31 @@
+{
+  "configurations" : [
+    {
+      "id" : "1A2B3C4D-0001-0001-0001-000000000001",
+      "name" : "Test Scheme Action",
+      "options" : {
+        "parallelization" : "none"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "parallelization" : "none"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Event Budgeter.xcodeproj",
+        "identifier" : "CB00F9232F9D4D08004DCFC1",
+        "name" : "Event BudgeterTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Event Budgeter.xcodeproj",
+        "identifier" : "CB00F92D2F9D4D08004DCFC1",
+        "name" : "Event BudgeterUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
