@@ -4,9 +4,11 @@
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 
 struct AddEditGiftItemView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -156,6 +158,7 @@ struct AddEditGiftItemView: View {
                 storeName: storeName,
                 itemURL: itemURL
             )
+            modelContext.insert(item)
             onCreate?(item)
             dismiss()
         }

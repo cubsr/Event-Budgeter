@@ -18,8 +18,17 @@ struct AddEditPersonView: View {
     @State private var colorHex = String.randomAvatarColor()
     @State private var photoData: Data?
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var addBirthday = false
+    @State private var birthday: Date = {
+        // Default to today but year-only feels natural — we'll use .now
+        Calendar.current.date(from: DateComponents(year: 1990, month: 1, day: 1)) ?? .now
+    }()
 
     private var isEditing: Bool { person != nil }
+
+    private var existingBirthdayEvent: Event? {
+        person?.assignments.first(where: { $0.event?.category == .birthday })?.event
+    }
 
     var body: some View {
         NavigationStack {
@@ -30,6 +39,30 @@ struct AddEditPersonView: View {
 
                 Section("Relationship") {
                     TextField("e.g. Mom, Spouse, Friend", text: $relationshipLabel)
+                }
+
+                Section {
+                    if let existing = existingBirthdayEvent {
+                        HStack {
+                            Label("Birthday already added", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(existing.canonicalDate.formatted(date: .abbreviated, time: .omitted))
+                                .foregroundStyle(.secondary)
+                                .font(.subheadline)
+                        }
+                    } else {
+                        Toggle("Add Birthday", isOn: $addBirthday)
+                        if addBirthday {
+                            DatePicker("Birthday", selection: $birthday, displayedComponents: .date)
+                        }
+                    }
+                } header: {
+                    Text("Birthday")
+                } footer: {
+                    if existingBirthdayEvent == nil && addBirthday {
+                        Text("A recurring birthday event will be created and \(name.isEmpty ? "this person" : name) will be added to it.")
+                    }
                 }
 
                 Section("Photo") {
@@ -141,10 +174,34 @@ struct AddEditPersonView: View {
             person.relationshipLabel = relationshipLabel
             person.colorHex = colorHex
             person.photoData = photoData
+            if addBirthday && existingBirthdayEvent == nil {
+                let event = Event(
+                    title: "\(trimmed)'s Birthday",
+                    emoji: "🎂",
+                    category: .birthday,
+                    canonicalDate: birthday,
+                    recurrenceRule: .yearly
+                )
+                modelContext.insert(event)
+                let ep = EventPerson(event: event, person: person)
+                modelContext.insert(ep)
+            }
         } else {
             let p = Person(name: trimmed, relationshipLabel: relationshipLabel, colorHex: colorHex)
             p.photoData = photoData
             modelContext.insert(p)
+            if addBirthday {
+                let event = Event(
+                    title: "\(trimmed)'s Birthday",
+                    emoji: "🎂",
+                    category: .birthday,
+                    canonicalDate: birthday,
+                    recurrenceRule: .yearly
+                )
+                modelContext.insert(event)
+                let ep = EventPerson(event: event, person: p)
+                modelContext.insert(ep)
+            }
         }
         dismiss()
     }
