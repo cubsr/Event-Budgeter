@@ -45,6 +45,17 @@ struct EditEventPersonBudgetSheet: View {
                     }
                 }
             }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
+                }
+            }
             .onAppear {
                 if eventPerson.budget > 0 {
                     budgetString = "\(eventPerson.budget)"

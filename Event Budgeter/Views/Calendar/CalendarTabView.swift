@@ -235,6 +235,7 @@ private struct CalendarEventCard: View {
                 .foregroundStyle(AppColors.textTertiary)
         }
         .bubbleCard(padding: .init(top: 12, leading: 12, bottom: 12, trailing: 12))
+        .contentShape(Rectangle())
     }
 }
 

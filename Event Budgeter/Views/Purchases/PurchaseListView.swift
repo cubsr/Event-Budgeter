@@ -11,8 +11,9 @@ struct PurchaseListView: View {
     let eventPerson: EventPerson
 
     @State private var showingAdd = false
-    @State private var showingTemplatePicker = false
+    @State private var showingIdeaPicker = false
     @State private var editingPurchase: PurchaseItem?
+    @State private var showingBudgetEdit = false
 
     private var sortedPurchases: [PurchaseItem] {
         eventPerson.purchases.sorted { $0.purchaseDate > $1.purchaseDate }
@@ -59,6 +60,26 @@ struct PurchaseListView: View {
                         if eventPerson.budget > 0 {
                             BudgetProgressBar(spent: eventPerson.totalSpent, budget: eventPerson.budget, currency: "$")
                         }
+
+                        Divider()
+
+                        Button {
+                            showingBudgetEdit = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "pencil.circle.fill")
+                                    .foregroundStyle(AppColors.accent)
+                                Text(eventPerson.budget > 0 ? "Edit Budget" : "Set Budget")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppColors.accent)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(AppColors.textTertiary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                     .bubbleCard()
                     .padding(.horizontal, 16)
@@ -101,7 +122,7 @@ struct PurchaseListView: View {
                         // Inline add buttons
                         HStack(spacing: 0) {
                             Button { showingAdd = true } label: {
-                                Label("Add Item", systemImage: "plus")
+                                Label("New Item", systemImage: "plus")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(AppColors.accent)
                                     .frame(maxWidth: .infinity)
@@ -111,8 +132,8 @@ struct PurchaseListView: View {
 
                             Divider().frame(height: 22)
 
-                            Button { showingTemplatePicker = true } label: {
-                                Label("Template", systemImage: "square.stack")
+                            Button { showingIdeaPicker = true } label: {
+                                Label("From Ideas", systemImage: "lightbulb")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(AppColors.accent)
                                     .frame(maxWidth: .infinity)
@@ -145,14 +166,17 @@ struct PurchaseListView: View {
         }
         .navigationTitle("\(personName) · \(eventName)")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingBudgetEdit) {
+            EditEventPersonBudgetSheet(eventPerson: eventPerson)
+        }
         .sheet(isPresented: $showingAdd) {
             AddEditPurchaseView(eventPerson: eventPerson)
         }
         .sheet(item: $editingPurchase) { item in
             AddEditPurchaseView(eventPerson: eventPerson, purchase: item)
         }
-        .sheet(isPresented: $showingTemplatePicker) {
-            GiftItemPickerSheet(eventPerson: eventPerson)
+        .sheet(isPresented: $showingIdeaPicker) {
+            GiftIdeaPickerSheet(eventPerson: eventPerson)
         }
     }
 
@@ -181,8 +205,9 @@ private struct PurchaseRow: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(item.status.color.opacity(0.12))
                         .frame(width: 44, height: 44)
-                    Text(item.status.icon)
+                    Image(systemName: item.status.icon)
                         .font(.system(size: 20))
+                        .foregroundStyle(item.status.color)
                 }
             }
 

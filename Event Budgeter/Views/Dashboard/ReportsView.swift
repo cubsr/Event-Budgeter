@@ -186,12 +186,9 @@ struct ReportsView: View {
                                                     .font(.system(size: 13, weight: .semibold))
                                                     .foregroundStyle(.primary)
                                                 Spacer()
-                                                Text("$\(NSDecimalNumber(decimal: spent).intValue)")
+                                                Text("$\(NSDecimalNumber(decimal: spent).intValue) / $\(NSDecimalNumber(decimal: budget).intValue)")
                                                     .font(.system(size: 12))
                                                     .foregroundStyle(AppColors.textSecondary)
-                                                + Text(" / $\(NSDecimalNumber(decimal: budget).intValue)")
-                                                    .font(.system(size: 12))
-                                                    .foregroundStyle(AppColors.textTertiary)
                                             }
 
                                             GeometryReader { geo in
@@ -324,6 +321,7 @@ struct ReportsView: View {
                                                 .font(.system(size: 11))
                                                 .foregroundStyle(AppColors.textTertiary)
                                         }
+                                        .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
                                 }

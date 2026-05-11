@@ -7,7 +7,9 @@ import SwiftUI
 import SwiftData
 
 struct RootTabView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query private var allEvents: [Event]
+    @Query(filter: #Predicate<GiftIdea> { $0.isCashGift }) private var cashGiftIdeas: [GiftIdea]
     @AppStorage("upcomingSheetLastShown") private var lastShownDate: String = ""
     @State private var showingUpcomingSheet = false
     @State private var selectedTab: AppTab = .events
@@ -54,6 +56,7 @@ struct RootTabView: View {
             CustomTabBar(selectedTab: $selectedTab)
         }
         .onAppear {
+            seedCashGiftIfNeeded()
             guard !upcomingEvents.isEmpty, lastShownDate != todayISO else { return }
             showingUpcomingSheet = true
             lastShownDate = todayISO
@@ -63,6 +66,17 @@ struct RootTabView: View {
                 showingUpcomingSheet = false
             }
         }
+    }
+
+    private func seedCashGiftIfNeeded() {
+        guard cashGiftIdeas.isEmpty else { return }
+        let cashGift = GiftIdea(
+            name: "Cash Gift",
+            cost: 0,
+            notes: "Enter the amount given each time.",
+            isCashGift: true
+        )
+        modelContext.insert(cashGift)
     }
 }
 

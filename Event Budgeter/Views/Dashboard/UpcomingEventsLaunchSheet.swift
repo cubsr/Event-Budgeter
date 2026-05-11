@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct UpcomingEventsLaunchSheet: View {
     let upcomingEvents: [(event: Event, daysUntil: Int)]

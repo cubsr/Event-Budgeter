@@ -63,6 +63,7 @@ final class Event {
     var notes: String
     var eventBudget: Decimal?
     var notifyOnDay: Bool = false
+    var isHidden: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \EventPerson.event)
     var assignments: [EventPerson] = []

@@ -1,43 +1,39 @@
 //
-//  GiftItem.swift
+//  GiftIdea.swift
 //  Event Budgeter
+//
+//  A reusable gift idea / template, independent of any event or person.
+//  Concrete tracked purchases live on PurchaseItem.
 //
 
 import Foundation
 import SwiftData
 
 @Model
-final class GiftItem {
+final class GiftIdea {
     var name: String
     var cost: Decimal
     var notes: String
-    var purchaseDate: Date
-    var status: ItemStatus
     var photoData: Data?
     var storeName: String
     var itemURL: String
-
-    @Relationship(deleteRule: .nullify, inverse: \EventPerson.giftItems)
-    var assignments: [EventPerson]
+    var isCashGift: Bool = false
 
     init(
         name: String,
-        cost: Decimal,
+        cost: Decimal = 0,
         notes: String = "",
-        purchaseDate: Date = .now,
-        status: ItemStatus = .need,
         photoData: Data? = nil,
         storeName: String = "",
-        itemURL: String = ""
+        itemURL: String = "",
+        isCashGift: Bool = false
     ) {
         self.name = name
         self.cost = cost
         self.notes = notes
-        self.purchaseDate = purchaseDate
-        self.status = status
         self.photoData = photoData
         self.storeName = storeName
         self.itemURL = itemURL
-        self.assignments = []
+        self.isCashGift = isCashGift
     }
 }

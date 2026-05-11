@@ -6,7 +6,6 @@
 import SwiftUI
 
 enum ItemStatus: String, Codable, CaseIterable, Identifiable {
-    case idea
     case need
     case have
     case wrap
@@ -16,17 +15,15 @@ enum ItemStatus: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .idea: return "Idea"
         case .need: return "Need"
         case .have: return "Have"
-        case .wrap: return "Wrap"
-        case .gift: return "Gift"
+        case .wrap: return "Wrapped"
+        case .gift: return "Gifted"
         }
     }
 
     var icon: String {
         switch self {
-        case .idea: return "lightbulb"
         case .need: return "cart"
         case .have: return "checkmark.circle"
         case .wrap: return "shippingbox"
@@ -36,10 +33,9 @@ enum ItemStatus: String, Codable, CaseIterable, Identifiable {
 
     var color: Color {
         switch self {
-        case .idea: return Color(hex: "#A78BFA")   // violet
         case .need: return .orange
         case .have: return .blue
-        case .wrap: return Color(hex: "#EC4899")   // pink
+        case .wrap: return Color(hex: "#EC4899")
         case .gift: return .green
         }
     }

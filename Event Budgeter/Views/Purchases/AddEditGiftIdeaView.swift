@@ -1,5 +1,5 @@
 //
-//  AddEditGiftItemView.swift
+//  AddEditGiftIdeaView.swift
 //  Event Budgeter
 //
 
@@ -7,25 +7,23 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 
-struct AddEditGiftItemView: View {
+struct AddEditGiftIdeaView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    var giftItem: GiftItem?
-    var initialStatus: ItemStatus = .idea
-    var onCreate: ((GiftItem) -> Void)?
+    var giftIdea: GiftIdea?
+    var onCreate: ((GiftIdea) -> Void)?
 
     @State private var name = ""
     @State private var costString = ""
     @State private var notes = ""
-    @State private var status: ItemStatus = .idea
     @State private var storeName = ""
     @State private var itemURL = ""
     @State private var photoData: Data?
     @State private var selectedPhotoItem: PhotosPickerItem?
 
-    private var isEditing: Bool { giftItem != nil }
+    private var isEditing: Bool { giftIdea != nil }
 
     private var cost: Decimal {
         Decimal(string: costString.replacingOccurrences(of: ",", with: ".")) ?? 0
@@ -40,24 +38,14 @@ struct AddEditGiftItemView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Item") {
+                Section("Idea") {
                     TextField("Name", text: $name)
                     HStack {
                         Text(Locale.current.currencySymbol ?? "$")
                             .foregroundStyle(.secondary)
-                        TextField("0.00", text: $costString)
+                        TextField("Typical cost (optional)", text: $costString)
                             .keyboardType(.decimalPad)
                     }
-                }
-
-                Section("Status") {
-                    Picker("Status", selection: $status) {
-                        ForEach(ItemStatus.allCases) { s in
-                            Label(s.label, systemImage: s.icon).tag(s)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.vertical, 2)
                 }
 
                 Section("Details") {
@@ -100,7 +88,7 @@ struct AddEditGiftItemView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Edit Template" : "New Template")
+            .navigationTitle(isEditing ? "Edit Idea" : "New Idea")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -109,6 +97,15 @@ struct AddEditGiftItemView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || cost < 0)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
                 }
             }
             .onAppear { populate() }
@@ -123,42 +120,36 @@ struct AddEditGiftItemView: View {
     }
 
     private func populate() {
-        guard let giftItem else {
-            status = initialStatus
-            return
-        }
-        name = giftItem.name
-        costString = "\(giftItem.cost)"
-        notes = giftItem.notes
-        status = giftItem.status
-        storeName = giftItem.storeName
-        itemURL = giftItem.itemURL
-        photoData = giftItem.photoData
+        guard let giftIdea else { return }
+        name = giftIdea.name
+        costString = giftIdea.cost > 0 ? (giftIdea.cost as NSDecimalNumber).stringValue : ""
+        notes = giftIdea.notes
+        storeName = giftIdea.storeName
+        itemURL = giftIdea.itemURL
+        photoData = giftIdea.photoData
     }
 
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        if let giftItem {
-            giftItem.name = trimmed
-            giftItem.cost = cost
-            giftItem.notes = notes
-            giftItem.status = status
-            giftItem.storeName = storeName
-            giftItem.itemURL = itemURL
-            giftItem.photoData = photoData
+        if let giftIdea {
+            giftIdea.name = trimmed
+            giftIdea.cost = cost
+            giftIdea.notes = notes
+            giftIdea.storeName = storeName
+            giftIdea.itemURL = itemURL
+            giftIdea.photoData = photoData
             dismiss()
         } else {
-            let item = GiftItem(
+            let idea = GiftIdea(
                 name: trimmed,
                 cost: cost,
                 notes: notes,
-                status: status,
                 photoData: photoData,
                 storeName: storeName,
                 itemURL: itemURL
             )
-            modelContext.insert(item)
-            onCreate?(item)
+            modelContext.insert(idea)
+            onCreate?(idea)
             dismiss()
         }
     }

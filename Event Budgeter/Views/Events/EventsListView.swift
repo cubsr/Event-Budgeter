@@ -12,8 +12,10 @@ struct EventsListView: View {
 
     @State private var showingAdd = false
 
+    private var visibleEvents: [Event] { events.filter { !$0.isHidden } }
+
     private var grouped: [(EventCategory, [Event])] {
-        let byCategory = Dictionary(grouping: events) { $0.category }
+        let byCategory = Dictionary(grouping: visibleEvents) { $0.category }
         return EventCategory.allCases.compactMap { cat in
             guard let items = byCategory[cat], !items.isEmpty else { return nil }
             let sorted = items.sorted { a, b in
@@ -28,7 +30,7 @@ struct EventsListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if events.isEmpty {
+                if visibleEvents.isEmpty {
                     ContentUnavailableView(
                         "No Events Yet",
                         systemImage: "calendar.badge.plus",
@@ -60,7 +62,7 @@ struct EventsListView: View {
                         Image(systemName: "plus")
                     }
                 }
-                if !events.isEmpty {
+                if !visibleEvents.isEmpty {
                     ToolbarItem(placement: .navigationBarLeading) {
                         EditButton()
                     }

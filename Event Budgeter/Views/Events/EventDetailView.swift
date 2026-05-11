@@ -8,17 +8,26 @@ import SwiftData
 
 struct EventDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     let event: Event
 
     @State private var showingEdit = false
     @State private var showingAssign = false
     @State private var editingEventPerson: EventPerson?
+    @State private var showingBudgetEdit = false
     @State private var showingEventBudgetEdit = false
     @State private var eventBudgetString = ""
+    @State private var showingDeleteConfirm = false
 
     private var sortedAssignments: [EventPerson] {
         event.assignments.compactMap { $0.person != nil ? $0 : nil }
             .sorted { ($0.person?.name ?? "") < ($1.person?.name ?? "") }
+    }
+
+    private var boughtGifts: [PurchaseItem] {
+        event.assignments
+            .flatMap { $0.purchases }
+            .sorted { $0.purchaseDate > $1.purchaseDate }
     }
 
     var body: some View {
@@ -129,14 +138,58 @@ struct EventDetailView: View {
                         if event.displayBudget > 0 {
                             BudgetProgressBar(spent: event.totalSpent, budget: event.displayBudget, currency: "$")
                         }
+
+                        Divider()
+
+                        Button {
+                            showingBudgetEdit = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "dollarsign.circle.fill")
+                                    .foregroundStyle(AppColors.accent)
+                                Text("Edit Budgets")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppColors.accent)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(AppColors.textTertiary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                     .bubbleCard()
                     .padding(.horizontal, 16)
 
-                    // People & Budgets
+                    // Gifts bought across the event
+                    if !boughtGifts.isEmpty {
+                        VStack(spacing: 10) {
+                            HStack {
+                                Text("Gifts")
+                                    .sectionHeaderStyle()
+                                Spacer()
+                                Text("\(boughtGifts.count)")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(AppColors.textSecondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(AppColors.accentSoft)
+                                    .clipShape(Capsule())
+                            }
+
+                            ForEach(boughtGifts) { item in
+                                EventGiftRow(item: item)
+                            }
+                        }
+                        .bubbleCard()
+                        .padding(.horizontal, 16)
+                    }
+
+                    // People
                     VStack(spacing: 10) {
                         HStack {
-                            Text("People & Budgets")
+                            Text("People")
                                 .sectionHeaderStyle()
                             Spacer()
                             Button {
@@ -192,11 +245,42 @@ struct EventDetailView: View {
         .navigationTitle(event.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            Button("Edit") { showingEdit = true }
-                .foregroundStyle(AppColors.accent)
+            Menu {
+                Button("Edit Event") { showingEdit = true }
+                Divider()
+                if event.category == .birthday {
+                    Button(event.isHidden ? "Unhide Birthday" : "Hide Birthday") {
+                        event.isHidden.toggle()
+                        if event.isHidden { dismiss() }
+                    }
+                } else {
+                    Button("Delete Event", role: .destructive) {
+                        showingDeleteConfirm = true
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(AppColors.accent)
+            }
+        }
+        .confirmationDialog(
+            "Delete \"\(event.title)\"?",
+            isPresented: $showingDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                modelContext.delete(event)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently remove the event and all associated purchases.")
         }
         .sheet(isPresented: $showingEdit) {
             AddEditEventView(event: event)
+        }
+        .sheet(isPresented: $showingBudgetEdit) {
+            EditEventBudgetsSheet(event: event)
         }
         .sheet(isPresented: $showingAssign) {
             AssignPersonSheet(event: event)
@@ -222,6 +306,61 @@ struct EventDetailView: View {
     }
 }
 
+private struct EventGiftRow: View {
+    let item: PurchaseItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(item.status.color.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                if let data = item.photoData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                } else {
+                    Image(systemName: item.status.icon)
+                        .font(.system(size: 16))
+                        .foregroundStyle(item.status.color)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                if let person = item.eventPerson?.person {
+                    Text("for \(person.name)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 3) {
+                if item.cost > 0 {
+                    Text("$\(NSDecimalNumber(decimal: item.cost).intValue)")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.primary)
+                }
+                Text(item.status.label)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(item.status.color)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(item.status.color.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 private struct PersonBudgetRow: View {
     let ep: EventPerson
     let person: Person
@@ -238,9 +377,14 @@ private struct PersonBudgetRow: View {
                 if ep.budget > 0 {
                     BudgetProgressBar(spent: ep.totalSpent, budget: ep.budget, currency: "$")
                 } else {
-                    Text("$\(NSDecimalNumber(decimal: ep.totalSpent).intValue) spent · no budget set")
-                        .font(.system(size: 11))
-                        .foregroundStyle(AppColors.textSecondary)
+                    HStack(spacing: 4) {
+                        Text("$\(NSDecimalNumber(decimal: ep.totalSpent).intValue) spent · no budget set")
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppColors.textSecondary)
+                        Image(systemName: "pencil")
+                            .font(.system(size: 10))
+                            .foregroundStyle(AppColors.accentMid)
+                    }
                 }
             }
 
@@ -260,5 +404,6 @@ private struct PersonBudgetRow: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 }

@@ -17,8 +17,6 @@ final class EventPerson {
     @Relationship(deleteRule: .cascade, inverse: \PurchaseItem.eventPerson)
     var purchases: [PurchaseItem] = []
 
-    var giftItems: [GiftItem] = []
-
     init(event: Event, person: Person, budget: Decimal = 0, notes: String = "") {
         self.event = event
         self.person = person

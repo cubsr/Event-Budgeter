@@ -9,6 +9,7 @@ struct PersonDetailView: View {
     let person: Person
     @State private var showingEdit = false
     @State private var selectedYear = Calendar.current.component(.year, from: .now)
+    @State private var editingEventPerson: EventPerson?
 
     private var years: [Int] {
         let currentYear = Calendar.current.component(.year, from: .now)
@@ -98,6 +99,14 @@ struct PersonDetailView: View {
                                         PersonEventRow(ep: ep, event: event)
                                     }
                                     .buttonStyle(.plain)
+                                    .swipeActions(edge: .leading) {
+                                        Button {
+                                            editingEventPerson = ep
+                                        } label: {
+                                            Label("Budget", systemImage: "pencil")
+                                        }
+                                        .tint(AppColors.accent)
+                                    }
                                 }
                             }
                         }
@@ -117,6 +126,9 @@ struct PersonDetailView: View {
         }
         .sheet(isPresented: $showingEdit) {
             AddEditPersonView(person: person)
+        }
+        .sheet(item: $editingEventPerson) { ep in
+            EditEventPersonBudgetSheet(eventPerson: ep)
         }
     }
 }
@@ -165,5 +177,6 @@ private struct PersonEventRow: View {
             }
         }
         .bubbleCard(padding: .init(top: 12, leading: 12, bottom: 12, trailing: 12))
+        .contentShape(Rectangle())
     }
 }

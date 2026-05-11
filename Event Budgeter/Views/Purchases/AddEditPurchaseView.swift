@@ -14,6 +14,7 @@ struct AddEditPurchaseView: View {
 
     let eventPerson: EventPerson
     var purchase: PurchaseItem?
+    var prefill: GiftIdea? = nil
 
     @State private var name = ""
     @State private var costString = ""
@@ -24,6 +25,7 @@ struct AddEditPurchaseView: View {
     @State private var itemURL = ""
     @State private var photoData: Data?
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var saveAsIdea: Bool = true
 
     private var isEditing: Bool { purchase != nil }
 
@@ -111,6 +113,14 @@ struct AddEditPurchaseView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+
+                if !isEditing && prefill == nil {
+                    Section {
+                        Toggle("Also save as a reusable idea", isOn: $saveAsIdea)
+                    } footer: {
+                        Text("Saved ideas show up in the Ideas tab and can be reused for other gifts.")
+                    }
+                }
             }
             .navigationTitle(isEditing ? "Edit Item" : "Add Item")
             .navigationBarTitleDisplayMode(.inline)
@@ -135,15 +145,26 @@ struct AddEditPurchaseView: View {
     }
 
     private func populate() {
-        guard let purchase else { return }
-        name = purchase.name
-        costString = "\(purchase.cost)"
-        notes = purchase.notes
-        purchaseDate = purchase.purchaseDate
-        status = purchase.status
-        storeName = purchase.storeName
-        itemURL = purchase.itemURL
-        photoData = purchase.photoData
+        if let purchase {
+            name = purchase.name
+            costString = purchase.cost > 0 ? (purchase.cost as NSDecimalNumber).stringValue : ""
+            notes = purchase.notes
+            purchaseDate = purchase.purchaseDate
+            status = purchase.status
+            storeName = purchase.storeName
+            itemURL = purchase.itemURL
+            photoData = purchase.photoData
+        } else if let prefill {
+            name = prefill.name
+            // Cash Gift always gets a blank cost so the user enters the specific amount
+            costString = prefill.isCashGift ? "" : (prefill.cost > 0 ? (prefill.cost as NSDecimalNumber).stringValue : "")
+            notes = prefill.notes
+            storeName = prefill.storeName
+            itemURL = prefill.itemURL
+            photoData = prefill.photoData
+            // Already pulled from an idea — don't re-create one
+            saveAsIdea = false
+        }
     }
 
     private func save() {
@@ -171,6 +192,18 @@ struct AddEditPurchaseView: View {
             )
             modelContext.insert(item)
             eventPerson.purchases.append(item)
+
+            if saveAsIdea {
+                let idea = GiftIdea(
+                    name: trimmed,
+                    cost: cost,
+                    notes: notes,
+                    photoData: photoData,
+                    storeName: storeName,
+                    itemURL: itemURL
+                )
+                modelContext.insert(idea)
+            }
         }
         dismiss()
     }
