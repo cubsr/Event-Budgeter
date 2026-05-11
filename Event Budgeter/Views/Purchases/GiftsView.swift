@@ -486,14 +486,14 @@ private struct GiftCard: View {
     }
 }
 
-// MARK: - Gift Add Sheet (picks event → person → opens AddEditPurchaseView)
+// MARK: - Gift Add Sheet (picks event → person, or creates a standalone idea)
 
 struct GiftAddSheet: View {
     @Environment(\.dismiss) private var dismiss
     let events: [Event]
 
     @State private var selectedEventPerson: EventPerson? = nil
-    @State private var showingAdd = false
+    @State private var showingStandaloneAdd = false
 
     private var allEventPersons: [EventPerson] {
         events.flatMap { $0.assignments }.filter { $0.person != nil }
@@ -504,28 +504,51 @@ struct GiftAddSheet: View {
             ZStack {
                 AppColors.appBg.ignoresSafeArea()
 
-                if allEventPersons.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "person.badge.plus")
-                            .font(.system(size: 48))
-                            .foregroundStyle(AppColors.accentMid)
-                        Text("No people assigned to events yet")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                        Text("Go to an event and assign people first,\nthen track gifts here.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
-                } else {
-                    ScrollView {
-                        VStack(spacing: 10) {
+                ScrollView {
+                    VStack(spacing: 10) {
+                        // Standalone gift idea — always available
+                        Button {
+                            showingStandaloneAdd = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Text("💡")
+                                    .font(.system(size: 22))
+                                    .frame(width: 40, height: 40)
+                                    .background(AppColors.accentSoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Gift idea")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(.primary)
+                                    Text("No person or event required")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(AppColors.textSecondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(AppColors.textTertiary)
+                            }
+                            .bubbleCard(padding: .init(top: 12, leading: 12, bottom: 12, trailing: 12))
+                            .padding(.horizontal, 16)
+                        }
+                        .buttonStyle(.plain)
+
+                        if !allEventPersons.isEmpty {
+                            HStack {
+                                Text("OR FOR A PERSON")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(AppColors.textTertiary)
+                                    .padding(.leading, 20)
+                                Spacer()
+                            }
+                            .padding(.top, 6)
+
                             ForEach(allEventPersons) { ep in
                                 if let person = ep.person, let event = ep.event {
                                     Button {
                                         selectedEventPerson = ep
-                                        showingAdd = true
                                     } label: {
                                         HStack(spacing: 12) {
                                             Text(event.displayEmoji)
@@ -553,23 +576,25 @@ struct GiftAddSheet: View {
                                     .buttonStyle(.plain)
                                 }
                             }
-                            Color.clear.frame(height: 30)
                         }
-                        .padding(.top, 14)
+
+                        Color.clear.frame(height: 30)
                     }
+                    .padding(.top, 14)
                 }
             }
-            .navigationTitle("Add Gift For")
+            .navigationTitle("Add Gift")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .sheet(isPresented: $showingAdd) {
-                if let ep = selectedEventPerson {
-                    AddEditPurchaseView(eventPerson: ep)
-                }
+            .sheet(item: $selectedEventPerson) { ep in
+                AddEditPurchaseView(eventPerson: ep)
+            }
+            .sheet(isPresented: $showingStandaloneAdd) {
+                AddEditGiftItemView()
             }
         }
     }
