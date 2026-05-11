@@ -13,13 +13,13 @@ struct AddEditGiftItemView: View {
     @Environment(\.openURL) private var openURL
 
     var giftItem: GiftItem?
+    var initialStatus: ItemStatus = .idea
     var onCreate: ((GiftItem) -> Void)?
 
     @State private var name = ""
     @State private var costString = ""
     @State private var notes = ""
-    @State private var purchaseDate: Date = .now
-    @State private var status: ItemStatus = .need
+    @State private var status: ItemStatus = .idea
     @State private var storeName = ""
     @State private var itemURL = ""
     @State private var photoData: Data?
@@ -61,7 +61,6 @@ struct AddEditGiftItemView: View {
                 }
 
                 Section("Details") {
-                    DatePicker("Date", selection: $purchaseDate, displayedComponents: .date)
                     TextField("Store / Source", text: $storeName)
                     HStack {
                         TextField("Link (URL)", text: $itemURL)
@@ -124,11 +123,13 @@ struct AddEditGiftItemView: View {
     }
 
     private func populate() {
-        guard let giftItem else { return }
+        guard let giftItem else {
+            status = initialStatus
+            return
+        }
         name = giftItem.name
         costString = "\(giftItem.cost)"
         notes = giftItem.notes
-        purchaseDate = giftItem.purchaseDate
         status = giftItem.status
         storeName = giftItem.storeName
         itemURL = giftItem.itemURL
@@ -141,7 +142,6 @@ struct AddEditGiftItemView: View {
             giftItem.name = trimmed
             giftItem.cost = cost
             giftItem.notes = notes
-            giftItem.purchaseDate = purchaseDate
             giftItem.status = status
             giftItem.storeName = storeName
             giftItem.itemURL = itemURL
@@ -152,7 +152,6 @@ struct AddEditGiftItemView: View {
                 name: trimmed,
                 cost: cost,
                 notes: notes,
-                purchaseDate: purchaseDate,
                 status: status,
                 photoData: photoData,
                 storeName: storeName,
