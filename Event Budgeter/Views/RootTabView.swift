@@ -30,8 +30,8 @@ struct RootTabView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Content area
+        VStack(spacing: 0) {
+            // Content area fills remaining space
             ZStack {
                 AppColors.appBg.ignoresSafeArea()
 
@@ -49,14 +49,9 @@ struct RootTabView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .safeAreaInset(edge: .bottom) {
-                // Space for custom tab bar (48pt bar + bottom safe area)
-                Color.clear.frame(height: 48)
-            }
 
-            // Custom tab bar sits above the safe area
+            // Tab bar sits below content, above device safe area
             CustomTabBar(selectedTab: $selectedTab)
-                .ignoresSafeArea(edges: .bottom)
         }
         .onAppear {
             guard !upcomingEvents.isEmpty, lastShownDate != todayISO else { return }
