@@ -23,6 +23,15 @@ struct AddEditEventView: View {
 
     private var isEditing: Bool { event != nil }
 
+    // Birthdays are created from a Person's birthday field, never standalone.
+    // Existing birthday events keep .birthday available in the picker so we don't change their category on edit.
+    private var pickerCategories: [EventCategory] {
+        if event?.category == .birthday {
+            return EventCategory.allCases
+        }
+        return EventCategory.allCases.filter { $0 != .birthday }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -50,7 +59,7 @@ struct AddEditEventView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                                 Picker("Category", selection: $category) {
-                                    ForEach(EventCategory.allCases) { cat in
+                                    ForEach(pickerCategories) { cat in
                                         Text(cat.label).tag(cat)
                                     }
                                 }

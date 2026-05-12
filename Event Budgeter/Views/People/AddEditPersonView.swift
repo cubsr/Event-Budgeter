@@ -20,9 +20,10 @@ struct AddEditPersonView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var addBirthday = false
     @State private var birthday: Date = {
-        // Default to today but year-only feels natural — we'll use .now
         Calendar.current.date(from: DateComponents(year: 1990, month: 1, day: 1)) ?? .now
     }()
+    @State private var pendingBirthdayRemoval = false
+    @State private var showingRemoveBirthdayConfirm = false
 
     private var isEditing: Bool { person != nil }
 
@@ -42,14 +43,20 @@ struct AddEditPersonView: View {
                 }
 
                 Section {
-                    if let existing = existingBirthdayEvent {
+                    if existingBirthdayEvent != nil && !pendingBirthdayRemoval {
+                        DatePicker("Birthday", selection: $birthday, displayedComponents: .date)
+                        Button(role: .destructive) {
+                            showingRemoveBirthdayConfirm = true
+                        } label: {
+                            Label("Remove Birthday", systemImage: "trash")
+                        }
+                    } else if pendingBirthdayRemoval {
                         HStack {
-                            Label("Birthday already added", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.secondary)
+                            Label("Birthday will be removed on Save", systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
                             Spacer()
-                            Text(existing.canonicalDate.formatted(date: .abbreviated, time: .omitted))
-                                .foregroundStyle(.secondary)
-                                .font(.subheadline)
+                            Button("Undo") { pendingBirthdayRemoval = false }
+                                .foregroundStyle(AppColors.accent)
                         }
                     } else {
                         Toggle("Add Birthday", isOn: $addBirthday)
@@ -62,6 +69,8 @@ struct AddEditPersonView: View {
                 } footer: {
                     if existingBirthdayEvent == nil && addBirthday {
                         Text("A recurring birthday event will be created and \(name.isEmpty ? "this person" : name) will be added to it.")
+                    } else if pendingBirthdayRemoval {
+                        Text("The birthday event and its tracked gifts will be permanently deleted.")
                     }
                 }
 
@@ -156,6 +165,18 @@ struct AddEditPersonView: View {
                     }
                 }
             }
+            .confirmationDialog(
+                "Remove this birthday?",
+                isPresented: $showingRemoveBirthdayConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Remove Birthday", role: .destructive) {
+                    pendingBirthdayRemoval = true
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("The birthday event and any gifts tracked for it will be deleted when you tap Save.")
+            }
         }
     }
 
@@ -165,6 +186,9 @@ struct AddEditPersonView: View {
         relationshipLabel = person.relationshipLabel
         colorHex = person.colorHex
         photoData = person.photoData
+        if let existing = existingBirthdayEvent {
+            birthday = existing.canonicalDate
+        }
     }
 
     private func save() {
@@ -174,7 +198,18 @@ struct AddEditPersonView: View {
             person.relationshipLabel = relationshipLabel
             person.colorHex = colorHex
             person.photoData = photoData
-            if addBirthday && existingBirthdayEvent == nil {
+
+            if let existing = existingBirthdayEvent {
+                if pendingBirthdayRemoval {
+                    NotificationManager.cancelNotification(for: existing)
+                    modelContext.delete(existing)
+                } else {
+                    existing.canonicalDate = birthday
+                    existing.title = "\(trimmed)'s Birthday"
+                    NotificationManager.cancelNotification(for: existing)
+                    NotificationManager.scheduleEventNotification(for: existing)
+                }
+            } else if addBirthday {
                 let event = Event(
                     title: "\(trimmed)'s Birthday",
                     emoji: "🎂",

@@ -4,12 +4,16 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct PersonDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     let person: Person
     @State private var showingEdit = false
     @State private var selectedYear = Calendar.current.component(.year, from: .now)
     @State private var editingEventPerson: EventPerson?
+    @State private var showingDeleteConfirm = false
 
     private var years: [Int] {
         let currentYear = Calendar.current.component(.year, from: .now)
@@ -121,15 +125,49 @@ struct PersonDetailView: View {
         .navigationTitle(person.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            Button("Edit") { showingEdit = true }
-                .foregroundStyle(AppColors.accent)
+            Menu {
+                Button("Edit Person") { showingEdit = true }
+                Divider()
+                Button("Delete Person", role: .destructive) {
+                    showingDeleteConfirm = true
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(AppColors.accent)
+            }
         }
         .sheet(isPresented: $showingEdit) {
             AddEditPersonView(person: person)
         }
+        .confirmationDialog(
+            "Delete \(person.name)?",
+            isPresented: $showingDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                deletePerson()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes \(person.name) and any birthday event tied to them. Other events will keep their other people.")
+        }
         .sheet(item: $editingEventPerson) { ep in
             EditEventPersonBudgetSheet(eventPerson: ep)
         }
+    }
+
+    private func deletePerson() {
+        // Delete any birthday event tied to this person (it's 1:1, no other purpose).
+        for ep in person.assignments {
+            if let event = ep.event, event.category == .birthday {
+                NotificationManager.cancelNotification(for: event)
+                modelContext.delete(event)
+            }
+        }
+        // Person.assignments cascade-deletes their EventPerson rows for other events,
+        // which leaves those events intact for the other people assigned to them.
+        modelContext.delete(person)
+        dismiss()
     }
 }
 

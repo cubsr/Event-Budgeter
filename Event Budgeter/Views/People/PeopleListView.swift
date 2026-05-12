@@ -11,6 +11,7 @@ struct PeopleListView: View {
     @Query(sort: \Person.name) private var people: [Person]
 
     @State private var showingAdd = false
+    @State private var personToDelete: Person?
     private let currentYear = Calendar.current.component(.year, from: .now)
 
     var body: some View {
@@ -42,6 +43,13 @@ struct PeopleListView: View {
                                         .padding(.horizontal, 16)
                                 }
                                 .buttonStyle(.plain)
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        personToDelete = person
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                             Color.clear.frame(height: 80)
                         }
@@ -57,13 +65,33 @@ struct PeopleListView: View {
             .sheet(isPresented: $showingAdd) {
                 AddEditPersonView()
             }
+            .confirmationDialog(
+                "Delete \(personToDelete?.name ?? "person")?",
+                isPresented: Binding(get: { personToDelete != nil }, set: { if !$0 { personToDelete = nil } }),
+                titleVisibility: .visible,
+                presenting: personToDelete
+            ) { person in
+                Button("Delete", role: .destructive) {
+                    deletePerson(person)
+                    personToDelete = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    personToDelete = nil
+                }
+            } message: { person in
+                Text("This removes \(person.name) and any birthday event tied to them.")
+            }
         }
     }
 
-    private func delete(offsets: IndexSet) {
-        for i in offsets {
-            modelContext.delete(people[i])
+    private func deletePerson(_ person: Person) {
+        for ep in person.assignments {
+            if let event = ep.event, event.category == .birthday {
+                NotificationManager.cancelNotification(for: event)
+                modelContext.delete(event)
+            }
         }
+        modelContext.delete(person)
     }
 }
 
