@@ -14,6 +14,7 @@ struct AddEditGiftIdeaView: View {
 
     var giftIdea: GiftIdea?
     var onCreate: ((GiftIdea) -> Void)?
+    var onSaved: (() -> Void)? = nil
 
     @State private var name = ""
     @State private var costString = ""
@@ -138,7 +139,6 @@ struct AddEditGiftIdeaView: View {
             giftIdea.storeName = storeName
             giftIdea.itemURL = itemURL
             giftIdea.photoData = photoData
-            dismiss()
         } else {
             let idea = GiftIdea(
                 name: trimmed,
@@ -150,7 +150,8 @@ struct AddEditGiftIdeaView: View {
             )
             modelContext.insert(idea)
             onCreate?(idea)
-            dismiss()
         }
+        onSaved?()
+        dismiss()
     }
 }

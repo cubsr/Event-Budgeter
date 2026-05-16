@@ -12,7 +12,8 @@ struct RootTabView: View {
     @Query(filter: #Predicate<GiftIdea> { $0.isCashGift }) private var cashGiftIdeas: [GiftIdea]
     @AppStorage("upcomingSheetLastShown") private var lastShownDate: String = ""
     @State private var showingUpcomingSheet = false
-    @State private var selectedTab: AppTab = .events
+    @State private var showingSettings = false
+    @StateObject private var navState = TabNavigationState()
 
     private var upcomingEvents: [(event: Event, daysUntil: Int)] {
         let cal = Calendar.current
@@ -33,14 +34,13 @@ struct RootTabView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Content area fills remaining space
             ZStack {
                 AppColors.appBg.ignoresSafeArea()
 
                 Group {
-                    switch selectedTab {
+                    switch navState.selectedTab {
                     case .events:
-                        EventsTabView()
+                        EventsListView()
                     case .gifts:
                         GiftsView()
                     case .people:
@@ -52,11 +52,12 @@ struct RootTabView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            // Tab bar sits below content, above device safe area
-            CustomTabBar(selectedTab: $selectedTab)
+            CustomTabBar(navState: navState, showingSettings: $showingSettings)
         }
         .onAppear {
             seedCashGiftIfNeeded()
+            HolidaySeeder.seedIfNeeded(context: modelContext, existingEvents: allEvents)
+            NotificationManager.rescheduleNthWeekdayNotifications(for: allEvents)
             guard !upcomingEvents.isEmpty, lastShownDate != todayISO else { return }
             showingUpcomingSheet = true
             lastShownDate = todayISO
@@ -66,6 +67,10 @@ struct RootTabView: View {
                 showingUpcomingSheet = false
             }
         }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
+        .environmentObject(navState)
     }
 
     private func seedCashGiftIfNeeded() {
@@ -98,27 +103,52 @@ enum AppTab: String, CaseIterable {
 // MARK: - Custom Tab Bar
 
 struct CustomTabBar: View {
-    @Binding var selectedTab: AppTab
+    @ObservedObject var navState: TabNavigationState
+    @Binding var showingSettings: Bool
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
+            ForEach(Array(AppTab.allCases.enumerated()), id: \.element) { index, tab in
+                if index > 0 {
+                    TabDivider()
+                }
                 Button {
-                    selectedTab = tab
+                    navState.selectOrReset(tab)
                 } label: {
+                    let active = navState.selectedTab == tab
                     VStack(spacing: 3) {
-                        TabIcon(tab: tab, active: selectedTab == tab)
+                        TabIcon(tab: tab, active: active)
                             .frame(width: 22, height: 22)
                         Text(tab.label)
-                            .font(.system(size: 10, weight: selectedTab == tab ? .bold : .regular))
-                            .foregroundStyle(selectedTab == tab ? AppColors.tabActive : AppColors.tabInactive)
+                            .font(.system(size: 10, weight: active ? .bold : .regular))
+                            .foregroundStyle(active ? AppColors.tabActive : AppColors.tabInactive)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 8)
+                    .padding(.top, 12)
                     .padding(.bottom, 4)
                 }
                 .buttonStyle(.plain)
             }
+
+            TabDivider()
+
+            Button {
+                showingSettings = true
+            } label: {
+                VStack(spacing: 3) {
+                    Image(systemName: "gear")
+                        .font(.system(size: 20, weight: .regular))
+                        .foregroundStyle(AppColors.tabInactive)
+                        .frame(width: 22, height: 22)
+                    Text("Settings")
+                        .font(.system(size: 10, weight: .regular))
+                        .foregroundStyle(AppColors.tabInactive)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+            }
+            .buttonStyle(.plain)
         }
         .background(
             AppColors.tabBarBg
@@ -130,6 +160,16 @@ struct CustomTabBar: View {
                 }
                 .ignoresSafeArea(edges: .bottom)
         )
+    }
+}
+
+// MARK: - Tab Divider
+
+private struct TabDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.secondary.opacity(0.35))
+            .frame(width: 0.5, height: 28)
     }
 }
 

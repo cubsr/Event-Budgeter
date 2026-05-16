@@ -13,7 +13,9 @@ struct PurchaseListView: View {
     @State private var showingAdd = false
     @State private var showingIdeaPicker = false
     @State private var editingPurchase: PurchaseItem?
+    @State private var purchaseToDelete: PurchaseItem?
     @State private var showingBudgetEdit = false
+    @State private var toast: ToastMessage?
 
     private var sortedPurchases: [PurchaseItem] {
         eventPerson.purchases.sorted { $0.purchaseDate > $1.purchaseDate }
@@ -108,6 +110,11 @@ struct PurchaseListView: View {
                                 PurchaseRow(item: item)
                                     .contentShape(Rectangle())
                                     .onTapGesture { editingPurchase = item }
+                                    .contextMenu {
+                                        Button("Edit") { editingPurchase = item }
+                                        Divider()
+                                        Button("Delete", role: .destructive) { purchaseToDelete = item }
+                                    }
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 10)
 
@@ -170,21 +177,27 @@ struct PurchaseListView: View {
             EditEventPersonBudgetSheet(eventPerson: eventPerson)
         }
         .sheet(isPresented: $showingAdd) {
-            AddEditPurchaseView(eventPerson: eventPerson)
+            AddEditPurchaseView(eventPerson: eventPerson, onSave: { toast = .success("Gift saved") })
         }
         .sheet(item: $editingPurchase) { item in
-            AddEditPurchaseView(eventPerson: eventPerson, purchase: item)
+            AddEditPurchaseView(eventPerson: eventPerson, purchase: item, onSave: { toast = .success("Gift updated") })
         }
         .sheet(isPresented: $showingIdeaPicker) {
             GiftIdeaPickerSheet(eventPerson: eventPerson)
         }
-    }
-
-    private func delete(offsets: IndexSet) {
-        let items = sortedPurchases
-        for i in offsets {
-            modelContext.delete(items[i])
+        .confirmationDialog(
+            "Delete \"\(purchaseToDelete?.name ?? "item")\"?",
+            isPresented: Binding(get: { purchaseToDelete != nil }, set: { if !$0 { purchaseToDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let item = purchaseToDelete { modelContext.delete(item) }
+                purchaseToDelete = nil
+                toast = .success("Item deleted")
+            }
+            Button("Cancel", role: .cancel) { purchaseToDelete = nil }
         }
+        .toast(message: $toast)
     }
 }
 

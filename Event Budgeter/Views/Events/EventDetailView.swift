@@ -10,14 +10,18 @@ struct EventDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     let event: Event
+    var onDeleted: (() -> Void)? = nil
 
     @State private var showingEdit = false
     @State private var showingAssign = false
     @State private var editingEventPerson: EventPerson?
+    @State private var epToRemove: EventPerson?
     @State private var showingBudgetEdit = false
     @State private var showingEventBudgetEdit = false
     @State private var eventBudgetString = ""
     @State private var showingDeleteConfirm = false
+    @State private var showingAddGift = false
+    @State private var toast: ToastMessage?
 
     private var sortedAssignments: [EventPerson] {
         event.assignments.compactMap { $0.person != nil ? $0 : nil }
@@ -163,12 +167,12 @@ struct EventDetailView: View {
                     .padding(.horizontal, 16)
 
                     // Gifts bought across the event
-                    if !boughtGifts.isEmpty {
-                        VStack(spacing: 10) {
-                            HStack {
-                                Text("Gifts")
-                                    .sectionHeaderStyle()
-                                Spacer()
+                    VStack(spacing: 10) {
+                        HStack {
+                            Text("Gifts")
+                                .sectionHeaderStyle()
+                            Spacer()
+                            if !boughtGifts.isEmpty {
                                 Text("\(boughtGifts.count)")
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(AppColors.textSecondary)
@@ -177,14 +181,28 @@ struct EventDetailView: View {
                                     .background(AppColors.accentSoft)
                                     .clipShape(Capsule())
                             }
+                            Button {
+                                showingAddGift = true
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(AppColors.accent)
+                            }
+                        }
 
+                        if boughtGifts.isEmpty {
+                            Text("No gifts tracked yet.")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppColors.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 8)
+                        } else {
                             ForEach(boughtGifts) { item in
                                 EventGiftRow(item: item)
                             }
                         }
-                        .bubbleCard()
-                        .padding(.horizontal, 16)
                     }
+                    .bubbleCard()
+                    .padding(.horizontal, 16)
 
                     // People
                     VStack(spacing: 10) {
@@ -226,7 +244,7 @@ struct EventDetailView: View {
                                 }
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) {
-                                        modelContext.delete(ep)
+                                        epToRemove = ep
                                     } label: {
                                         Label("Remove", systemImage: "trash")
                                     }
@@ -269,6 +287,7 @@ struct EventDetailView: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
+                onDeleted?()
                 modelContext.delete(event)
                 dismiss()
             }
@@ -276,14 +295,32 @@ struct EventDetailView: View {
         } message: {
             Text("This will permanently remove the event and all associated purchases.")
         }
+        .confirmationDialog(
+            "Remove \(epToRemove?.person?.name ?? "person") from this event?",
+            isPresented: Binding(get: { epToRemove != nil }, set: { if !$0 { epToRemove = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                if let ep = epToRemove { modelContext.delete(ep) }
+                epToRemove = nil
+                withAnimation { toast = .success("Person removed") }
+            }
+            Button("Cancel", role: .cancel) { epToRemove = nil }
+        } message: {
+            Text("Their gift purchases for this event will also be removed.")
+        }
+        .toast(message: $toast)
         .sheet(isPresented: $showingEdit) {
-            AddEditEventView(event: event)
+            AddEditEventView(event: event, onSaved: { toast = .success("Event updated") })
         }
         .sheet(isPresented: $showingBudgetEdit) {
             EditEventBudgetsSheet(event: event)
         }
         .sheet(isPresented: $showingAssign) {
             AssignPersonSheet(event: event)
+        }
+        .sheet(isPresented: $showingAddGift) {
+            AddGiftToEventSheet(event: event)
         }
         .sheet(item: $editingEventPerson) { ep in
             EditEventPersonBudgetSheet(eventPerson: ep)

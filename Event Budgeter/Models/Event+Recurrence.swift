@@ -15,6 +15,11 @@ extension Event {
             var comps = cal.dateComponents([.month, .day], from: canonicalDate)
             comps.year = year
             return cal.date(from: comps)
+        case .nthWeekdayYearly:
+            guard let nth = recurrenceNth, let weekday = recurrenceWeekday,
+                  let month = cal.dateComponents([.month], from: canonicalDate).month
+            else { return nil }
+            return cal.nthWeekday(nth, weekday: weekday, month: month, year: year)
         }
     }
 
@@ -47,5 +52,19 @@ extension Event {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
         return formatter.string(from: next)
+    }
+}
+
+extension Calendar {
+    /// Returns the date of the nth occurrence of `weekday` in `month`/`year`.
+    /// weekday uses Calendar convention: 1=Sunday … 7=Saturday.
+    /// nth: 1=first, 2=second, 3=third, 4=fourth, -1=last.
+    func nthWeekday(_ nth: Int, weekday: Int, month: Int, year: Int) -> Date? {
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        comps.weekday = weekday
+        comps.weekdayOrdinal = nth
+        return self.date(from: comps)
     }
 }

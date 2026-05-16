@@ -16,6 +16,8 @@ struct GiftIdeaPickerSheet: View {
     @State private var searchText = ""
     @State private var showingNewIdea = false
     @State private var selectedIdea: GiftIdea?
+    @State private var editingIdea: GiftIdea?
+    @State private var ideaToDelete: GiftIdea?
 
     private var cashGiftIdea: GiftIdea? {
         allIdeas.first { $0.isCashGift }
@@ -105,6 +107,21 @@ struct GiftIdeaPickerSheet: View {
                                     }
                                 }
                             }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    editingIdea = idea
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(AppColors.accent)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    ideaToDelete = idea
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                 }
@@ -120,8 +137,22 @@ struct GiftIdeaPickerSheet: View {
             .sheet(isPresented: $showingNewIdea) {
                 AddEditGiftIdeaView()
             }
+            .sheet(item: $editingIdea) { idea in
+                AddEditGiftIdeaView(giftIdea: idea)
+            }
             .sheet(item: $selectedIdea) { idea in
                 AddEditPurchaseView(eventPerson: eventPerson, prefill: idea)
+            }
+            .confirmationDialog(
+                "Delete \"\(ideaToDelete?.name ?? "idea")\"?",
+                isPresented: Binding(get: { ideaToDelete != nil }, set: { if !$0 { ideaToDelete = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let idea = ideaToDelete { modelContext.delete(idea) }
+                    ideaToDelete = nil
+                }
+                Button("Cancel", role: .cancel) { ideaToDelete = nil }
             }
         }
     }

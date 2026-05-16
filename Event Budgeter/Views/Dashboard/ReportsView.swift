@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct ReportsView: View {
+    @EnvironmentObject private var navState: TabNavigationState
     @Query private var events: [Event]
     @Query(sort: \Person.name) private var people: [Person]
 
@@ -311,8 +312,8 @@ struct ReportsView: View {
                                             Text(person.name)
                                                 .font(.system(size: 14, weight: .semibold))
                                                 .foregroundStyle(.primary)
-                                            if !person.relationshipLabel.isEmpty {
-                                                Text(person.relationshipLabel)
+                                            if !person.displayRelationshipLabel.isEmpty {
+                                                Text(person.displayRelationshipLabel)
                                                     .font(.system(size: 12))
                                                     .foregroundStyle(AppColors.textSecondary)
                                             }
@@ -348,6 +349,7 @@ struct ReportsView: View {
             }
             .navigationBarHidden(true)
         }
+        .id(navState.resetCounters[.reports])
     }
 }
 

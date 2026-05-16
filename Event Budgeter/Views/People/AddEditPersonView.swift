@@ -10,11 +10,14 @@ import PhotosUI
 struct AddEditPersonView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query private var allEvents: [Event]
 
     var person: Person?
+    var onSaved: (() -> Void)? = nil
 
     @State private var name = ""
-    @State private var relationshipLabel = ""
+    @State private var standardRelationship: StandardRelationship = .other
+    @State private var customRelationshipLabel = ""
     @State private var colorHex = String.randomAvatarColor()
     @State private var photoData: Data?
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -31,6 +34,10 @@ struct AddEditPersonView: View {
         person?.assignments.first(where: { $0.event?.category == .birthday })?.event
     }
 
+    private var previewRelationshipLabel: String {
+        standardRelationship == .other ? customRelationshipLabel : standardRelationship.label
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -39,7 +46,14 @@ struct AddEditPersonView: View {
                 }
 
                 Section("Relationship") {
-                    TextField("e.g. Mom, Spouse, Friend", text: $relationshipLabel)
+                    Picker("Type", selection: $standardRelationship) {
+                        ForEach(StandardRelationship.allCases) { rel in
+                            Text(rel.label).tag(rel)
+                        }
+                    }
+                    if standardRelationship == .other {
+                        TextField("Custom relationship (optional)", text: $customRelationshipLabel)
+                    }
                 }
 
                 Section {
@@ -135,8 +149,8 @@ struct AddEditPersonView: View {
                         VStack(alignment: .leading) {
                             Text(name.isEmpty ? "Name" : name)
                                 .fontWeight(.medium)
-                            if !relationshipLabel.isEmpty {
-                                Text(relationshipLabel)
+                            if !previewRelationshipLabel.isEmpty {
+                                Text(previewRelationshipLabel)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -183,7 +197,14 @@ struct AddEditPersonView: View {
     private func populate() {
         guard let person else { return }
         name = person.name
-        relationshipLabel = person.relationshipLabel
+        if let rel = person.standardRelationship {
+            standardRelationship = rel
+            customRelationshipLabel = person.customRelationshipLabel
+        } else {
+            // Legacy record: show as "Other" with existing text in the custom field
+            standardRelationship = .other
+            customRelationshipLabel = person.relationshipLabel
+        }
         colorHex = person.colorHex
         photoData = person.photoData
         if let existing = existingBirthdayEvent {
@@ -193,9 +214,13 @@ struct AddEditPersonView: View {
 
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let displayLabel = standardRelationship == .other ? customRelationshipLabel : standardRelationship.label
+
         if let person {
             person.name = trimmed
-            person.relationshipLabel = relationshipLabel
+            person.standardRelationship = standardRelationship
+            person.customRelationshipLabel = customRelationshipLabel
+            person.relationshipLabel = displayLabel
             person.colorHex = colorHex
             person.photoData = photoData
 
@@ -221,8 +246,16 @@ struct AddEditPersonView: View {
                 let ep = EventPerson(event: event, person: person)
                 modelContext.insert(ep)
             }
+
+            autoAssignHolidays(person: person)
         } else {
-            let p = Person(name: trimmed, relationshipLabel: relationshipLabel, colorHex: colorHex)
+            let p = Person(
+                name: trimmed,
+                relationshipLabel: displayLabel,
+                colorHex: colorHex,
+                standardRelationship: standardRelationship,
+                customRelationshipLabel: customRelationshipLabel
+            )
             p.photoData = photoData
             modelContext.insert(p)
             if addBirthday {
@@ -237,7 +270,23 @@ struct AddEditPersonView: View {
                 let ep = EventPerson(event: event, person: p)
                 modelContext.insert(ep)
             }
+            autoAssignHolidays(person: p)
         }
+        onSaved?()
         dismiss()
+    }
+
+    private func autoAssignHolidays(person: Person) {
+        guard let holidayKey = standardRelationship.holidaySystemKey,
+              let holiday = allEvents.first(where: { $0.systemKey == holidayKey })
+        else { return }
+
+        let alreadyAssigned = holiday.assignments.contains {
+            $0.person?.persistentModelID == person.persistentModelID
+        }
+        guard !alreadyAssigned else { return }
+
+        let ep = EventPerson(event: holiday, person: person)
+        modelContext.insert(ep)
     }
 }

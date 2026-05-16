@@ -15,6 +15,7 @@ struct AddEditPurchaseView: View {
     let eventPerson: EventPerson
     var purchase: PurchaseItem?
     var prefill: GiftIdea? = nil
+    var onSave: (() -> Void)? = nil
 
     @State private var name = ""
     @State private var costString = ""
@@ -205,6 +206,7 @@ struct AddEditPurchaseView: View {
                 modelContext.insert(idea)
             }
         }
+        onSave?()
         dismiss()
     }
 }

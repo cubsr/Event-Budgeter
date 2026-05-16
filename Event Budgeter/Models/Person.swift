@@ -12,14 +12,30 @@ final class Person {
     var relationshipLabel: String
     var colorHex: String
     var photoData: Data?
+    var standardRelationship: StandardRelationship?
+    var customRelationshipLabel: String = ""
+    var isHidden: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \EventPerson.person)
     var assignments: [EventPerson] = []
 
-    init(name: String, relationshipLabel: String = "", colorHex: String = "#5856D6") {
+    init(
+        name: String,
+        relationshipLabel: String = "",
+        colorHex: String = "#5856D6",
+        standardRelationship: StandardRelationship? = nil,
+        customRelationshipLabel: String = ""
+    ) {
         self.name = name
         self.relationshipLabel = relationshipLabel
         self.colorHex = colorHex
+        self.standardRelationship = standardRelationship
+        self.customRelationshipLabel = customRelationshipLabel
+    }
+
+    var displayRelationshipLabel: String {
+        guard let rel = standardRelationship else { return relationshipLabel }
+        return rel == .other ? customRelationshipLabel : rel.label
     }
 
     var initials: String {

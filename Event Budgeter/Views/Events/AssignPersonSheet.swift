@@ -13,7 +13,8 @@ struct AssignPersonSheet: View {
     let event: Event
     @Query(sort: \Person.name) private var allPeople: [Person]
 
-    @State private var selectedPerson: Person?
+    @State private var selectedPersonIDs: Set<PersistentIdentifier> = []
+    @State private var searchText = ""
     @State private var budgetString = ""
     @State private var showingNewPerson = false
 
@@ -22,7 +23,18 @@ struct AssignPersonSheet: View {
     }
 
     private var availablePeople: [Person] {
-        allPeople.filter { !assignedPersonIDs.contains($0.persistentModelID) }
+        let base = allPeople.filter {
+            !assignedPersonIDs.contains($0.persistentModelID) && !$0.isHidden
+        }
+        guard !searchText.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.displayRelationshipLabel.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var selectedPeople: [Person] {
+        allPeople.filter { selectedPersonIDs.contains($0.persistentModelID) }
     }
 
     private var budget: Decimal {
@@ -43,7 +55,9 @@ struct AssignPersonSheet: View {
 
                             if availablePeople.isEmpty {
                                 VStack(spacing: 8) {
-                                    Text("All people are already assigned.")
+                                    Text(searchText.isEmpty
+                                         ? "All people are already assigned."
+                                         : "No matching people.")
                                         .font(.system(size: 14))
                                         .foregroundStyle(AppColors.textSecondary)
                                     Button("Create New Person") { showingNewPerson = true }
@@ -54,7 +68,11 @@ struct AssignPersonSheet: View {
                             } else {
                                 ForEach(availablePeople) { person in
                                     Button {
-                                        selectedPerson = person
+                                        if selectedPersonIDs.contains(person.persistentModelID) {
+                                            selectedPersonIDs.remove(person.persistentModelID)
+                                        } else {
+                                            selectedPersonIDs.insert(person.persistentModelID)
+                                        }
                                     } label: {
                                         HStack(spacing: 12) {
                                             PersonAvatarView(person: person, size: 34)
@@ -63,8 +81,8 @@ struct AssignPersonSheet: View {
                                                 Text(person.name)
                                                     .font(.system(size: 14, weight: .semibold))
                                                     .foregroundStyle(.primary)
-                                                if !person.relationshipLabel.isEmpty {
-                                                    Text(person.relationshipLabel)
+                                                if !person.displayRelationshipLabel.isEmpty {
+                                                    Text(person.displayRelationshipLabel)
                                                         .font(.system(size: 12))
                                                         .foregroundStyle(AppColors.textSecondary)
                                                 }
@@ -72,7 +90,7 @@ struct AssignPersonSheet: View {
 
                                             Spacer()
 
-                                            if selectedPerson?.persistentModelID == person.persistentModelID {
+                                            if selectedPersonIDs.contains(person.persistentModelID) {
                                                 Image(systemName: "checkmark.circle.fill")
                                                     .foregroundStyle(AppColors.accent)
                                             } else {
@@ -83,7 +101,7 @@ struct AssignPersonSheet: View {
                                         }
                                         .padding(12)
                                         .background(
-                                            selectedPerson?.persistentModelID == person.persistentModelID
+                                            selectedPersonIDs.contains(person.persistentModelID)
                                                 ? AppColors.accentSoft
                                                 : AppColors.cardBg
                                         )
@@ -91,7 +109,7 @@ struct AssignPersonSheet: View {
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                                 .stroke(
-                                                    selectedPerson?.persistentModelID == person.persistentModelID
+                                                    selectedPersonIDs.contains(person.persistentModelID)
                                                         ? AppColors.accentMid
                                                         : Color.clear,
                                                     lineWidth: 1.5
@@ -120,10 +138,10 @@ struct AssignPersonSheet: View {
                         .bubbleCard()
                         .padding(.horizontal, 16)
 
-                        // Budget input (only when person selected)
-                        if selectedPerson != nil {
+                        // Budget input (only when at least one person selected)
+                        if !selectedPersonIDs.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Budget (Optional)")
+                                Text("Budget per person (Optional)")
                                     .sectionHeaderStyle()
 
                                 HStack(spacing: 8) {
@@ -137,6 +155,10 @@ struct AssignPersonSheet: View {
                                 .padding(12)
                                 .background(AppColors.accentSoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                                Text("Applied to each selected person.")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(AppColors.textSecondary)
                             }
                             .bubbleCard()
                             .padding(.horizontal, 16)
@@ -145,17 +167,20 @@ struct AssignPersonSheet: View {
                     .padding(.top, 14)
                 }
             }
-            .navigationTitle("Assign Person")
+            .navigationTitle("Assign People")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, prompt: "Search people")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") { assign() }
+                    Button(selectedPersonIDs.isEmpty ? "Add" : "Add (\(selectedPersonIDs.count))") {
+                        assign()
+                    }
                         .foregroundStyle(AppColors.accent)
                         .fontWeight(.bold)
-                        .disabled(selectedPerson == nil)
+                        .disabled(selectedPersonIDs.isEmpty)
                 }
             }
             .sheet(isPresented: $showingNewPerson) {
@@ -165,10 +190,11 @@ struct AssignPersonSheet: View {
     }
 
     private func assign() {
-        guard let person = selectedPerson else { return }
-        let ep = EventPerson(event: event, person: person, budget: budget)
-        modelContext.insert(ep)
-        event.assignments.append(ep)
+        for person in selectedPeople {
+            let ep = EventPerson(event: event, person: person, budget: budget)
+            modelContext.insert(ep)
+            event.assignments.append(ep)
+        }
         dismiss()
     }
 }

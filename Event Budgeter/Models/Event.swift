@@ -41,14 +41,16 @@ enum EventCategory: String, Codable, CaseIterable, Identifiable {
 
 enum RecurrenceRule: String, Codable, CaseIterable, Identifiable {
     case yearly
+    case nthWeekdayYearly
     case none
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .yearly: "Every Year"
-        case .none: "One Time"
+        case .yearly:           "Every Year"
+        case .nthWeekdayYearly: "Every Year"
+        case .none:             "One Time"
         }
     }
 }
@@ -64,6 +66,9 @@ final class Event {
     var eventBudget: Decimal?
     var notifyOnDay: Bool = false
     var isHidden: Bool = false
+    var recurrenceNth: Int?
+    var recurrenceWeekday: Int?
+    var systemKey: String?
 
     @Relationship(deleteRule: .cascade, inverse: \EventPerson.event)
     var assignments: [EventPerson] = []
@@ -74,7 +79,10 @@ final class Event {
         category: EventCategory = .custom,
         canonicalDate: Date = .now,
         recurrenceRule: RecurrenceRule = .yearly,
-        notes: String = ""
+        notes: String = "",
+        recurrenceNth: Int? = nil,
+        recurrenceWeekday: Int? = nil,
+        systemKey: String? = nil
     ) {
         self.title = title
         self.emoji = emoji.isEmpty ? category.defaultEmoji : emoji
@@ -82,6 +90,9 @@ final class Event {
         self.canonicalDate = canonicalDate
         self.recurrenceRule = recurrenceRule
         self.notes = notes
+        self.recurrenceNth = recurrenceNth
+        self.recurrenceWeekday = recurrenceWeekday
+        self.systemKey = systemKey
     }
 
     var displayEmoji: String {

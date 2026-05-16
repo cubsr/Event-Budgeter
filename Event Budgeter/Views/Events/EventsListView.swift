@@ -8,9 +8,11 @@ import SwiftData
 
 struct EventsListView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var navState: TabNavigationState
     @Query private var events: [Event]
 
     @State private var showingAdd = false
+    @State private var toast: ToastMessage?
 
     private var visibleEvents: [Event] { events.filter { !$0.isHidden } }
 
@@ -42,7 +44,9 @@ struct EventsListView: View {
                             Section(category.label) {
                                 ForEach(items) { event in
                                     NavigationLink {
-                                        EventDetailView(event: event)
+                                        EventDetailView(event: event, onDeleted: {
+                                            toast = .success("Event deleted")
+                                        })
                                     } label: {
                                         EventRow(event: event)
                                     }
@@ -69,8 +73,16 @@ struct EventsListView: View {
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                AddEditEventView()
+                AddEditEventView(onSaved: { toast = .success("Event created") })
             }
+            .toast(message: $toast)
+        }
+        // Recreating the stack on reset pops any pushed detail view back to root.
+        // The sheet reset lives outside the stack so it isn't torn down by the
+        // .id() change and can clear the flag before the new stack reads it.
+        .id(navState.resetCounters[.events])
+        .onChange(of: navState.resetCounters[.events]) {
+            showingAdd = false
         }
     }
 
@@ -78,6 +90,7 @@ struct EventsListView: View {
         for i in offsets {
             modelContext.delete(items[i])
         }
+        toast = .success(offsets.count == 1 ? "Event deleted" : "\(offsets.count) events deleted")
     }
 }
 

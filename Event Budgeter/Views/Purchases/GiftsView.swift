@@ -11,6 +11,8 @@ import SwiftUI
 import SwiftData
 
 struct GiftsView: View {
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var navState: TabNavigationState
     @Query private var allPurchases: [PurchaseItem]
     @Query(sort: \GiftIdea.name) private var allIdeas: [GiftIdea]
     @Query private var events: [Event]
@@ -19,9 +21,13 @@ struct GiftsView: View {
     @State private var selectedSurface: Surface = .tracked
     @State private var statusFilter: ItemStatus? = nil
     @State private var groupBy: GiftGroupBy = .status
+    @State private var searchText = ""
     @State private var showingAddSheet = false
     @State private var editingPurchase: PurchaseItem? = nil
     @State private var editingIdea: GiftIdea? = nil
+    @State private var ideaToDelete: GiftIdea? = nil
+    @State private var purchaseToDelete: PurchaseItem? = nil
+    @State private var toast: ToastMessage?
 
     enum Surface: String, CaseIterable {
         case tracked = "Tracked"
@@ -37,8 +43,14 @@ struct GiftsView: View {
     // MARK: - Tracked surface
 
     private var filteredPurchases: [PurchaseItem] {
-        guard let f = statusFilter else { return allPurchases }
-        return allPurchases.filter { $0.status == f }
+        let statusFiltered = statusFilter.map { f in allPurchases.filter { $0.status == f } } ?? allPurchases
+        guard !searchText.isEmpty else { return statusFiltered }
+        return statusFiltered.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.storeName.localizedCaseInsensitiveContains(searchText) ||
+            ($0.eventPerson?.person?.name ?? "").localizedCaseInsensitiveContains(searchText) ||
+            ($0.eventPerson?.event?.title ?? "").localizedCaseInsensitiveContains(searchText)
+        }
     }
 
     private var pipelineCounts: [(ItemStatus, Int, Decimal)] {
@@ -89,10 +101,14 @@ struct GiftsView: View {
     // MARK: - Ideas surface
 
     private var displayedIdeas: [GiftIdea] {
-        // Cash Gift sticks to the top
         let cash = allIdeas.filter { $0.isCashGift }
         let rest = allIdeas.filter { !$0.isCashGift }
-        return cash + rest
+        let all = cash + rest
+        guard !searchText.isEmpty else { return all }
+        return all.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.storeName.localizedCaseInsensitiveContains(searchText)
+        }
     }
 
     // MARK: - Body
@@ -107,7 +123,30 @@ struct GiftsView: View {
 
                     surfacePicker
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 10)
+                        .padding(.bottom, 8)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(AppColors.textTertiary)
+                            .font(.system(size: 14))
+                        TextField(selectedSurface == .tracked ? "Search gifts…" : "Search ideas…", text: $searchText)
+                            .font(.system(size: 14))
+                            .autocorrectionDisabled()
+                        if !searchText.isEmpty {
+                            Button { searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(AppColors.textTertiary)
+                                    .font(.system(size: 14))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(AppColors.cardBg)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
 
                     if selectedSurface == .tracked {
                         trackedSurface
@@ -121,21 +160,55 @@ struct GiftsView: View {
                     .padding(.bottom, 20)
             }
             .navigationBarHidden(true)
+            .onChange(of: selectedSurface) { searchText = "" }
             .sheet(isPresented: $showingAddSheet) {
                 if selectedSurface == .tracked {
-                    GiftAddSheet(events: events)
+                    GiftAddSheet(events: events, onSave: { toast = .success("Gift added") })
                 } else {
-                    AddEditGiftIdeaView()
+                    AddEditGiftIdeaView(onSaved: { toast = .success("Idea saved") })
                 }
             }
             .sheet(item: $editingPurchase) { item in
                 if let ep = item.eventPerson {
-                    AddEditPurchaseView(eventPerson: ep, purchase: item)
+                    AddEditPurchaseView(eventPerson: ep, purchase: item, onSave: { toast = .success("Gift updated") })
                 }
             }
             .sheet(item: $editingIdea) { idea in
-                AddEditGiftIdeaView(giftIdea: idea)
+                AddEditGiftIdeaView(giftIdea: idea, onSaved: { toast = .success("Idea updated") })
             }
+            .confirmationDialog(
+                "Delete \"\(ideaToDelete?.name ?? "idea")\"?",
+                isPresented: Binding(get: { ideaToDelete != nil }, set: { if !$0 { ideaToDelete = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let idea = ideaToDelete { modelContext.delete(idea) }
+                    ideaToDelete = nil
+                    toast = .success("Idea deleted")
+                }
+                Button("Cancel", role: .cancel) { ideaToDelete = nil }
+            }
+            .confirmationDialog(
+                "Delete \"\(purchaseToDelete?.name ?? "gift")\"?",
+                isPresented: Binding(get: { purchaseToDelete != nil }, set: { if !$0 { purchaseToDelete = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let item = purchaseToDelete { modelContext.delete(item) }
+                    purchaseToDelete = nil
+                    toast = .success("Gift deleted")
+                }
+                Button("Cancel", role: .cancel) { purchaseToDelete = nil }
+            }
+            .toast(message: $toast)
+        }
+        .id(navState.resetCounters[.gifts])
+        .onChange(of: navState.resetCounters[.gifts]) {
+            showingAddSheet = false
+            editingPurchase = nil
+            editingIdea = nil
+            ideaToDelete = nil
+            purchaseToDelete = nil
         }
     }
 
@@ -285,6 +358,11 @@ struct GiftsView: View {
                                 )
                                 .padding(.horizontal, 16)
                                 .padding(.bottom, 8)
+                                .contextMenu {
+                                    Button("Edit") { editingPurchase = item }
+                                    Divider()
+                                    Button("Delete", role: .destructive) { purchaseToDelete = item }
+                                }
                             }
                         }
                         Color.clear.frame(height: 80)
@@ -319,6 +397,11 @@ struct GiftsView: View {
                         ForEach(displayedIdeas) { idea in
                             IdeaCard(idea: idea) { editingIdea = idea }
                                 .padding(.horizontal, 16)
+                                .contextMenu {
+                                    Button("Edit") { editingIdea = idea }
+                                    Divider()
+                                    Button("Delete", role: .destructive) { ideaToDelete = idea }
+                                }
                         }
                         Color.clear.frame(height: 80)
                     }
@@ -549,6 +632,7 @@ private struct PipelinePill: View {
 struct GiftAddSheet: View {
     @Environment(\.dismiss) private var dismiss
     let events: [Event]
+    var onSave: (() -> Void)? = nil
 
     @State private var selectedEventPerson: EventPerson? = nil
 
@@ -635,7 +719,10 @@ struct GiftAddSheet: View {
                 }
             }
             .sheet(item: $selectedEventPerson) { ep in
-                AddEditPurchaseView(eventPerson: ep)
+                AddEditPurchaseView(eventPerson: ep, onSave: {
+                    onSave?()
+                    dismiss()
+                })
             }
         }
     }

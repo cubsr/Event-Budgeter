@@ -11,6 +11,7 @@ struct AddEditEventView: View {
     @Environment(\.dismiss) private var dismiss
 
     var event: Event?
+    var onSaved: (() -> Void)? = nil
 
     @State private var title = ""
     @State private var emoji = ""
@@ -30,6 +31,11 @@ struct AddEditEventView: View {
             return EventCategory.allCases
         }
         return EventCategory.allCases.filter { $0 != .birthday }
+    }
+
+    // .nthWeekdayYearly is set only by HolidaySeeder — hide from manual picker.
+    private var pickerRecurrenceRules: [RecurrenceRule] {
+        RecurrenceRule.allCases.filter { $0 != .nthWeekdayYearly }
     }
 
     var body: some View {
@@ -85,7 +91,7 @@ struct AddEditEventView: View {
                                 .sectionHeaderStyle()
 
                             DatePicker(
-                                recurrenceRule == .yearly ? "Day & Month" : "Date",
+                                recurrenceRule == .none ? "Date" : "Day & Month",
                                 selection: $canonicalDate,
                                 displayedComponents: [.date]
                             )
@@ -97,7 +103,7 @@ struct AddEditEventView: View {
                                     .foregroundStyle(AppColors.textSecondary)
                                 Spacer()
                                 Picker("Repeats", selection: $recurrenceRule) {
-                                    ForEach(RecurrenceRule.allCases) { rule in
+                                    ForEach(pickerRecurrenceRules) { rule in
                                         Text(rule.label).tag(rule)
                                     }
                                 }
@@ -226,6 +232,7 @@ struct AddEditEventView: View {
             modelContext.insert(e)
             NotificationManager.scheduleEventNotification(for: e)
         }
+        onSaved?()
         dismiss()
     }
 }

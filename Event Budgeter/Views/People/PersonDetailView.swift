@@ -10,6 +10,9 @@ struct PersonDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     let person: Person
+    var onDeleted: (() -> Void)? = nil
+    var onSaved: (() -> Void)? = nil
+
     @State private var showingEdit = false
     @State private var selectedYear = Calendar.current.component(.year, from: .now)
     @State private var editingEventPerson: EventPerson?
@@ -45,8 +48,8 @@ struct PersonDetailView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(person.name)
                                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                            if !person.relationshipLabel.isEmpty {
-                                Text(person.relationshipLabel)
+                            if !person.displayRelationshipLabel.isEmpty {
+                                Text(person.displayRelationshipLabel)
                                     .font(.system(size: 13))
                                     .foregroundStyle(AppColors.textSecondary)
                             }
@@ -128,6 +131,11 @@ struct PersonDetailView: View {
             Menu {
                 Button("Edit Person") { showingEdit = true }
                 Divider()
+                Button(person.isHidden ? "Unhide Person" : "Hide Person") {
+                    person.isHidden.toggle()
+                    if person.isHidden { dismiss() }
+                }
+                Divider()
                 Button("Delete Person", role: .destructive) {
                     showingDeleteConfirm = true
                 }
@@ -137,7 +145,7 @@ struct PersonDetailView: View {
             }
         }
         .sheet(isPresented: $showingEdit) {
-            AddEditPersonView(person: person)
+            AddEditPersonView(person: person, onSaved: onSaved)
         }
         .confirmationDialog(
             "Delete \(person.name)?",
@@ -157,15 +165,13 @@ struct PersonDetailView: View {
     }
 
     private func deletePerson() {
-        // Delete any birthday event tied to this person (it's 1:1, no other purpose).
         for ep in person.assignments {
             if let event = ep.event, event.category == .birthday {
                 NotificationManager.cancelNotification(for: event)
                 modelContext.delete(event)
             }
         }
-        // Person.assignments cascade-deletes their EventPerson rows for other events,
-        // which leaves those events intact for the other people assigned to them.
+        onDeleted?()
         modelContext.delete(person)
         dismiss()
     }
