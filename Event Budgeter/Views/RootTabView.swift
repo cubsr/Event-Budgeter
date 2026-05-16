@@ -11,6 +11,8 @@ struct RootTabView: View {
     @Query private var allEvents: [Event]
     @Query(filter: #Predicate<GiftIdea> { $0.isCashGift }) private var cashGiftIdeas: [GiftIdea]
     @AppStorage("upcomingSheetLastShown") private var lastShownDate: String = ""
+    @AppStorage("defaultHomeTab") private var defaultHomeTab: String = AppTab.events.rawValue
+    @State private var didApplyDefaultTab = false
     @State private var showingUpcomingSheet = false
     @State private var showingSettings = false
     @StateObject private var navState = TabNavigationState()
@@ -40,7 +42,7 @@ struct RootTabView: View {
                 Group {
                     switch navState.selectedTab {
                     case .events:
-                        EventsListView()
+                        EventsTabView()
                     case .gifts:
                         GiftsView()
                     case .people:
@@ -55,6 +57,12 @@ struct RootTabView: View {
             CustomTabBar(navState: navState, showingSettings: $showingSettings)
         }
         .onAppear {
+            if !didApplyDefaultTab {
+                didApplyDefaultTab = true
+                if let tab = AppTab(rawValue: defaultHomeTab) {
+                    navState.selectedTab = tab
+                }
+            }
             seedCashGiftIfNeeded()
             HolidaySeeder.seedIfNeeded(context: modelContext, existingEvents: allEvents)
             NotificationManager.rescheduleNthWeekdayNotifications(for: allEvents)

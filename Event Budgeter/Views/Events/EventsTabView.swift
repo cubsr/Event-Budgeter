@@ -6,12 +6,18 @@
 import SwiftUI
 
 enum EventsSubTab {
-    case upcoming, calendar
+    case upcoming, calendar, byCategory
 }
 
 struct EventsTabView: View {
+    @EnvironmentObject private var navState: TabNavigationState
     @State private var subTab: EventsSubTab = .upcoming
     @State private var showingAdd = false
+    @State private var toast: ToastMessage?
+
+    private var deleteToast: () -> Void {
+        { toast = .success("Event deleted") }
+    }
 
     var body: some View {
         NavigationStack {
@@ -22,6 +28,7 @@ struct EventsTabView: View {
                     Picker("View", selection: $subTab) {
                         Text("Upcoming").tag(EventsSubTab.upcoming)
                         Text("Calendar").tag(EventsSubTab.calendar)
+                        Text("By Category").tag(EventsSubTab.byCategory)
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal, 20)
@@ -31,9 +38,11 @@ struct EventsTabView: View {
                     Group {
                         switch subTab {
                         case .upcoming:
-                            UpcomingEventsView()
+                            UpcomingEventsView(onDeleted: deleteToast)
                         case .calendar:
-                            CalendarTabView()
+                            CalendarTabView(onDeleted: deleteToast)
+                        case .byCategory:
+                            EventsByCategoryView(toast: $toast)
                         }
                     }
                     .animation(.easeInOut(duration: 0.2), value: subTab)
@@ -46,8 +55,16 @@ struct EventsTabView: View {
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingAdd) {
-                AddEditEventView()
+                AddEditEventView(onSaved: { toast = .success("Event created") })
             }
+            .toast(message: $toast)
+        }
+        // Recreating the stack on reset pops any pushed detail view back to root.
+        // The sheet reset lives outside the stack so it isn't torn down by the
+        // .id() change and can clear the flag before the new stack reads it.
+        .id(navState.resetCounters[.events])
+        .onChange(of: navState.resetCounters[.events]) {
+            showingAdd = false
         }
     }
 }

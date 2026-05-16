@@ -15,7 +15,6 @@ struct AddGiftToEventSheet: View {
     @Query(sort: \Person.name) private var allPeople: [Person]
 
     @State private var selectedEventPerson: EventPerson?
-    @State private var showingGiftForm = false
     @State private var showingIdeaPicker = false
     @State private var showingNewPerson = false
     @State private var giftAdded = false
@@ -114,38 +113,20 @@ struct AddGiftToEventSheet: View {
                         .bubbleCard()
                         .padding(.horizontal, 16)
 
-                        // Action buttons (shown once a person is selected)
+                        // Action (shown once a person is selected)
                         if selectedEventPerson != nil {
-                            VStack(spacing: 0) {
-                                HStack(spacing: 0) {
-                                    Button {
-                                        showingGiftForm = true
-                                    } label: {
-                                        Label("New Gift", systemImage: "gift")
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(AppColors.accent)
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 13)
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    Divider().frame(height: 22)
-
-                                    Button {
-                                        showingIdeaPicker = true
-                                    } label: {
-                                        Label("From Ideas", systemImage: "lightbulb")
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(AppColors.accent)
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 13)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                            Button {
+                                showingIdeaPicker = true
+                            } label: {
+                                Label("Add Gift", systemImage: "gift")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(AppColors.accent)
+                                    .foregroundStyle(.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             }
-                            .background(AppColors.cardBg)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+                            .buttonStyle(.plain)
                             .padding(.horizontal, 16)
                         }
 
@@ -164,11 +145,6 @@ struct AddGiftToEventSheet: View {
             .onAppear {
                 initialGiftCount = currentGiftCount
             }
-            .navigationDestination(isPresented: $showingGiftForm) {
-                if let ep = selectedEventPerson {
-                    AddEditPurchaseView(eventPerson: ep, onSave: { dismiss() })
-                }
-            }
             .sheet(isPresented: $showingNewPerson) {
                 AddEditPersonView()
             }
@@ -178,7 +154,7 @@ struct AddGiftToEventSheet: View {
                 }
             }) {
                 if let ep = selectedEventPerson {
-                    GiftIdeaPickerSheet(eventPerson: ep)
+                    GiftIdeaPickerSheet(eventPerson: ep, onGiftSaved: { dismiss() })
                 }
             }
         }

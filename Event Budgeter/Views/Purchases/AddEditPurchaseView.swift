@@ -20,7 +20,6 @@ struct AddEditPurchaseView: View {
     @State private var name = ""
     @State private var costString = ""
     @State private var notes = ""
-    @State private var purchaseDate: Date = .now
     @State private var status: ItemStatus = .need
     @State private var storeName = ""
     @State private var itemURL = ""
@@ -65,7 +64,6 @@ struct AddEditPurchaseView: View {
                 }
 
                 Section("Details") {
-                    DatePicker("Date", selection: $purchaseDate, displayedComponents: .date)
                     TextField("Store / Source", text: $storeName)
                     HStack {
                         TextField("Link (URL)", text: $itemURL)
@@ -150,7 +148,6 @@ struct AddEditPurchaseView: View {
             name = purchase.name
             costString = purchase.cost > 0 ? (purchase.cost as NSDecimalNumber).stringValue : ""
             notes = purchase.notes
-            purchaseDate = purchase.purchaseDate
             status = purchase.status
             storeName = purchase.storeName
             itemURL = purchase.itemURL
@@ -174,7 +171,6 @@ struct AddEditPurchaseView: View {
             purchase.name = trimmed
             purchase.cost = cost
             purchase.notes = notes
-            purchase.purchaseDate = purchaseDate
             purchase.status = status
             purchase.storeName = storeName
             purchase.itemURL = itemURL
@@ -184,7 +180,6 @@ struct AddEditPurchaseView: View {
                 name: trimmed,
                 cost: cost,
                 notes: notes,
-                purchaseDate: purchaseDate,
                 status: status,
                 photoData: photoData,
                 storeName: storeName,

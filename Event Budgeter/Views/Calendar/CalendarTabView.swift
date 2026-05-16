@@ -10,6 +10,8 @@ struct CalendarTabView: View {
     @Query private var events: [Event]
     @Environment(\.modelContext) private var modelContext
 
+    var onDeleted: (() -> Void)? = nil
+
     @State private var displayedMonth: Date = Calendar.current.startOfMonth(for: .now)
     @State private var selectedDate: Date? = nil
 
@@ -147,7 +149,7 @@ struct CalendarTabView: View {
                         VStack(spacing: 8) {
                             ForEach(eventsForSelected) { event in
                                 NavigationLink {
-                                    EventDetailView(event: event)
+                                    EventDetailView(event: event, onDeleted: onDeleted)
                                 } label: {
                                     CalendarEventCard(event: event)
                                         .padding(.horizontal, 16)
@@ -172,7 +174,7 @@ struct CalendarTabView: View {
                         VStack(spacing: 8) {
                             ForEach(sortedMonthEvents) { event in
                                 NavigationLink {
-                                    EventDetailView(event: event)
+                                    EventDetailView(event: event, onDeleted: onDeleted)
                                 } label: {
                                     CalendarEventCard(event: event)
                                         .padding(.horizontal, 16)

@@ -18,11 +18,6 @@ struct PersonDetailView: View {
     @State private var editingEventPerson: EventPerson?
     @State private var showingDeleteConfirm = false
 
-    private var years: [Int] {
-        let currentYear = Calendar.current.component(.year, from: .now)
-        return Array((currentYear - 3)...currentYear).reversed()
-    }
-
     private var yearlyTotal: Decimal {
         person.totalSpent(inYear: selectedYear)
     }
@@ -65,12 +60,7 @@ struct PersonDetailView: View {
 
                     // Year selector + spend
                     VStack(spacing: 10) {
-                        Picker("Year", selection: $selectedYear) {
-                            ForEach(years, id: \.self) { year in
-                                Text(String(year)).tag(year)
-                            }
-                        }
-                        .pickerStyle(.segmented)
+                        YearSelectorView(selectedYear: $selectedYear)
 
                         HStack {
                             Text("Spent in \(String(selectedYear))")

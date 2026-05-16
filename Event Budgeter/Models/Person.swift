@@ -19,6 +19,8 @@ final class Person {
     @Relationship(deleteRule: .cascade, inverse: \EventPerson.person)
     var assignments: [EventPerson] = []
 
+    var giftIdeas: [GiftIdea] = []
+
     init(
         name: String,
         relationshipLabel: String = "",

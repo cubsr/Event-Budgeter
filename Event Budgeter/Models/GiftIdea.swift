@@ -19,6 +19,9 @@ final class GiftIdea {
     var itemURL: String
     var isCashGift: Bool = false
 
+    @Relationship(inverse: \Person.giftIdeas)
+    var people: [Person] = []
+
     init(
         name: String,
         cost: Decimal = 0,
@@ -26,7 +29,8 @@ final class GiftIdea {
         photoData: Data? = nil,
         storeName: String = "",
         itemURL: String = "",
-        isCashGift: Bool = false
+        isCashGift: Bool = false,
+        people: [Person] = []
     ) {
         self.name = name
         self.cost = cost
@@ -35,5 +39,6 @@ final class GiftIdea {
         self.storeName = storeName
         self.itemURL = itemURL
         self.isCashGift = isCashGift
+        self.people = people
     }
 }

@@ -12,8 +12,12 @@ import SwiftData
 
 @main
 struct Event_BudgeterApp: App {
-    // Bump this any time the schema changes in a non-backward-compatible way during dev.
-    // On launch, if the stored version differs, the store is wiped before the container opens.
+    // Bump this ONLY for schema changes SwiftData cannot migrate automatically
+    // (e.g. renaming/removing a property, changing a type). On launch, if the
+    // stored version differs, the store is wiped before the container opens.
+    //
+    // Do NOT bump for additive changes (new optional properties/relationships) —
+    // SwiftData performs an automatic lightweight migration that preserves data.
     private static let devSchemaVersion = 2
 
     var sharedModelContainer: ModelContainer = {

@@ -12,6 +12,8 @@ struct UpcomingEventsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var events: [Event]
 
+    var onDeleted: (() -> Void)? = nil
+
     @State private var filter: UpcomingFilter = .all
 
     enum UpcomingFilter: String, CaseIterable {
@@ -108,7 +110,7 @@ struct UpcomingEventsView: View {
 
                             ForEach(items) { event in
                                 NavigationLink {
-                                    EventDetailView(event: event)
+                                    EventDetailView(event: event, onDeleted: onDeleted)
                                 } label: {
                                     UpcomingEventCard(event: event)
                                         .padding(.horizontal, 16)

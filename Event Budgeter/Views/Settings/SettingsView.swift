@@ -7,6 +7,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("defaultHomeTab") private var defaultHomeTab: String = AppTab.events.rawValue
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -17,6 +18,14 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("General") {
+                    Picker("Open To", selection: $defaultHomeTab) {
+                        ForEach(AppTab.allCases, id: \.self) { tab in
+                            Text(tab.label).tag(tab.rawValue)
+                        }
+                    }
+                }
+
                 Section("Notifications") {
                     Button {
                         // Deep-links to this app's notification page in Settings.

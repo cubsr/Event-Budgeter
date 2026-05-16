@@ -10,7 +10,6 @@ struct PurchaseListView: View {
     @Environment(\.modelContext) private var modelContext
     let eventPerson: EventPerson
 
-    @State private var showingAdd = false
     @State private var showingIdeaPicker = false
     @State private var editingPurchase: PurchaseItem?
     @State private var purchaseToDelete: PurchaseItem?
@@ -89,7 +88,7 @@ struct PurchaseListView: View {
                     // Items section
                     VStack(spacing: 0) {
                         if sortedPurchases.isEmpty {
-                            Button { showingAdd = true } label: {
+                            Button { showingIdeaPicker = true } label: {
                                 VStack(spacing: 10) {
                                     Image(systemName: "plus.circle")
                                         .font(.system(size: 38))
@@ -126,28 +125,15 @@ struct PurchaseListView: View {
 
                         Divider()
 
-                        // Inline add buttons
-                        HStack(spacing: 0) {
-                            Button { showingAdd = true } label: {
-                                Label("New Item", systemImage: "plus")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppColors.accent)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 13)
-                            }
-                            .buttonStyle(.plain)
-
-                            Divider().frame(height: 22)
-
-                            Button { showingIdeaPicker = true } label: {
-                                Label("From Ideas", systemImage: "lightbulb")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppColors.accent)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 13)
-                            }
-                            .buttonStyle(.plain)
+                        // Inline add button
+                        Button { showingIdeaPicker = true } label: {
+                            Label("Add Gift", systemImage: "gift")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(AppColors.accent)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
                         }
+                        .buttonStyle(.plain)
                     }
                     .background(AppColors.cardBg)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -176,14 +162,11 @@ struct PurchaseListView: View {
         .sheet(isPresented: $showingBudgetEdit) {
             EditEventPersonBudgetSheet(eventPerson: eventPerson)
         }
-        .sheet(isPresented: $showingAdd) {
-            AddEditPurchaseView(eventPerson: eventPerson, onSave: { toast = .success("Gift saved") })
-        }
         .sheet(item: $editingPurchase) { item in
             AddEditPurchaseView(eventPerson: eventPerson, purchase: item, onSave: { toast = .success("Gift updated") })
         }
         .sheet(isPresented: $showingIdeaPicker) {
-            GiftIdeaPickerSheet(eventPerson: eventPerson)
+            GiftIdeaPickerSheet(eventPerson: eventPerson, onGiftSaved: { toast = .success("Gift saved") })
         }
         .confirmationDialog(
             "Delete \"\(purchaseToDelete?.name ?? "item")\"?",
@@ -257,7 +240,7 @@ private struct PurchaseRow: View {
                 }
                 // Status badge
                 HStack(spacing: 3) {
-                    Text(item.status.icon)
+                    Image(systemName: item.status.icon)
                         .font(.system(size: 10))
                     Text(item.status.label)
                         .font(.system(size: 10, weight: .semibold))

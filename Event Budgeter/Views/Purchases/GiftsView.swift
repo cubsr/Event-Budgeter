@@ -634,81 +634,99 @@ struct GiftAddSheet: View {
     let events: [Event]
     var onSave: (() -> Void)? = nil
 
+    private enum PickMode: Hashable { case byPerson, byEvent }
+
+    @State private var mode: PickMode = .byPerson
+    @State private var searchText = ""
+    @State private var drillPerson: Person?
+    @State private var drillEvent: Event?
     @State private var selectedEventPerson: EventPerson? = nil
 
-    private var allEventPersons: [EventPerson] {
-        events.flatMap { $0.assignments }.filter { $0.person != nil }
+    private var validEPs: [EventPerson] {
+        events.flatMap { $0.assignments }.filter { $0.person != nil && $0.event != nil }
+    }
+
+    private var people: [Person] {
+        var seen = Set<PersistentIdentifier>()
+        var result: [Person] = []
+        for ep in validEPs {
+            guard let p = ep.person else { continue }
+            if seen.insert(p.persistentModelID).inserted { result.append(p) }
+        }
+        let sorted = result.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+        if searchText.isEmpty { return sorted }
+        return sorted.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private func events(for person: Person) -> [EventPerson] {
+        validEPs
+            .filter { $0.person?.persistentModelID == person.persistentModelID }
+            .sorted {
+                ($0.event?.title ?? "").localizedCaseInsensitiveCompare($1.event?.title ?? "") == .orderedAscending
+            }
+    }
+
+    private var eventsWithPeople: [Event] {
+        var seen = Set<PersistentIdentifier>()
+        var result: [Event] = []
+        for ep in validEPs {
+            guard let e = ep.event else { continue }
+            if seen.insert(e.persistentModelID).inserted { result.append(e) }
+        }
+        let sorted = result.sorted {
+            $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
+        if searchText.isEmpty { return sorted }
+        return sorted.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private func people(for event: Event) -> [EventPerson] {
+        event.assignments
+            .filter { $0.person != nil }
+            .sorted {
+                ($0.person?.name ?? "").localizedCaseInsensitiveCompare($1.person?.name ?? "") == .orderedAscending
+            }
     }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppColors.appBg.ignoresSafeArea()
+            Group {
+                if validEPs.isEmpty {
+                    emptyState
+                } else {
+                    VStack(spacing: 0) {
+                        Picker("View", selection: $mode) {
+                            Text("By Person").tag(PickMode.byPerson)
+                            Text("By Event").tag(PickMode.byEvent)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
 
-                ScrollView {
-                    VStack(spacing: 10) {
-                        if allEventPersons.isEmpty {
-                            VStack(spacing: 8) {
-                                Image(systemName: "person.crop.circle.badge.questionmark")
-                                    .font(.system(size: 36))
-                                    .foregroundStyle(AppColors.textTertiary)
-                                Text("Assign people to events first")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.primary)
-                                Text("Gifts are always tracked for a specific person and event.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(AppColors.textSecondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .padding(.vertical, 40)
-                            .padding(.horizontal, 32)
-                        } else {
-                            HStack {
-                                Text("FOR A PERSON")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(AppColors.textTertiary)
-                                    .padding(.leading, 20)
-                                Spacer()
-                            }
-                            .padding(.top, 6)
-
-                            ForEach(allEventPersons) { ep in
-                                if let person = ep.person, let event = ep.event {
-                                    Button {
-                                        selectedEventPerson = ep
-                                    } label: {
-                                        HStack(spacing: 12) {
-                                            Text(event.displayEmoji)
-                                                .font(.system(size: 22))
-                                                .frame(width: 40, height: 40)
-                                                .background(Color(hex: event.category.color).opacity(0.15))
-                                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(person.name)
-                                                    .font(.system(size: 14, weight: .semibold))
-                                                    .foregroundStyle(.primary)
-                                                Text(event.title)
-                                                    .font(.system(size: 12))
-                                                    .foregroundStyle(AppColors.textSecondary)
-                                            }
-                                            Spacer()
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 11))
-                                                .foregroundStyle(AppColors.textTertiary)
-                                        }
-                                        .bubbleCard(padding: .init(top: 12, leading: 12, bottom: 12, trailing: 12))
-                                        .contentShape(Rectangle())
-                                        .padding(.horizontal, 16)
+                        List {
+                            if mode == .byPerson {
+                                ForEach(people) { person in
+                                    Button { drillPerson = person } label: {
+                                        personRow(person, subtitle: person.displayRelationshipLabel)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            } else {
+                                ForEach(eventsWithPeople) { event in
+                                    Button { drillEvent = event } label: {
+                                        eventRow(event, subtitle: "\(people(for: event).count) people")
                                     }
                                     .buttonStyle(.plain)
                                 }
                             }
                         }
-
-                        Color.clear.frame(height: 30)
+                        .listStyle(.plain)
+                        .searchable(text: $searchText,
+                                    prompt: mode == .byPerson ? "Search people" : "Search events")
                     }
-                    .padding(.top, 14)
                 }
             }
             .navigationTitle("Add Gift")
@@ -718,12 +736,110 @@ struct GiftAddSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .onChange(of: mode) { searchText = "" }
+            .navigationDestination(item: $drillPerson) { person in
+                List {
+                    ForEach(events(for: person)) { ep in
+                        if let event = ep.event {
+                            Button { selectedEventPerson = ep } label: {
+                                eventRow(event, subtitle: "")
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .listStyle(.plain)
+                .navigationTitle(person.name)
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationDestination(item: $drillEvent) { event in
+                List {
+                    ForEach(people(for: event)) { ep in
+                        if let person = ep.person {
+                            Button { selectedEventPerson = ep } label: {
+                                personRow(person, subtitle: person.displayRelationshipLabel)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .listStyle(.plain)
+                .navigationTitle(event.title)
+                .navigationBarTitleDisplayMode(.inline)
+            }
             .sheet(item: $selectedEventPerson) { ep in
-                AddEditPurchaseView(eventPerson: ep, onSave: {
+                GiftIdeaPickerSheet(eventPerson: ep, onGiftSaved: {
                     onSave?()
                     dismiss()
                 })
             }
         }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.system(size: 36))
+                .foregroundStyle(AppColors.textTertiary)
+            Text("Assign people to events first")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+            Text("Gifts are always tracked for a specific person and event.")
+                .font(.system(size: 12))
+                .foregroundStyle(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, 40)
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppColors.appBg)
+    }
+
+    @ViewBuilder
+    private func personRow(_ person: Person, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            PersonAvatarView(person: person, size: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(person.name)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11))
+                .foregroundStyle(AppColors.textTertiary)
+        }
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func eventRow(_ event: Event, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            Text(event.displayEmoji)
+                .font(.system(size: 22))
+                .frame(width: 40, height: 40)
+                .background(Color(hex: event.category.color).opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11))
+                .foregroundStyle(AppColors.textTertiary)
+        }
+        .contentShape(Rectangle())
     }
 }
